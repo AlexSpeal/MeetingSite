@@ -1,9 +1,33 @@
+version: '3.8'
 services:
   postgres:
-    image: 'postgres:latest'
+    image: postgres:latest
+    container_name: postgres_flyway
+    restart: always
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
     ports:
-      - '5432'
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  flyway:
+    image: flyway/flyway:latest
+    container_name: flyway_migrations
+    depends_on:
+      - postgres
+    environment:
+      FLYWAY_USER: user
+      FLYWAY_PASSWORD: password
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/mydb
+      FLYWAY_SCHEMAS: public
+      FLYWAY_BASELINE_ON_MIGRATE: true
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ./migrations/db.migration:/flyway/sql
+    command: migrate
+
+volumes:
+  postgres_data:

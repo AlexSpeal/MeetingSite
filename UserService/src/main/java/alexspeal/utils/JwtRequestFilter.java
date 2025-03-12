@@ -36,7 +36,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             jwtToken = authHeader.substring(BEARER_PREFIX.length());
             try {
-                if (jwtToken != null && !jwtToken.isEmpty()) {
+                if (!jwtToken.isEmpty()) {
                     username = jwtTokenUtils.getUsername(jwtToken);
                 } else {
                     log.warn("JWT token is empty or invalid.");

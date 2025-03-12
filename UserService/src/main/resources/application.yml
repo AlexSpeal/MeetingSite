@@ -15,6 +15,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         enable_lazy_load_no_trans: true
+    hibernate:
+      ddl-auto: create
+    show-sql: false
 
 server:
   port: 8189

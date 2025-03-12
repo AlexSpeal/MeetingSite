@@ -1,10 +1,11 @@
 package alexspeal.controllers;
 
-import alexspeal.dto.JwtRequest;
-import alexspeal.dto.JwtResponse;
-import alexspeal.dto.RegistrationRequest;
-import alexspeal.dto.RegistrationResponse;
-import alexspeal.dto.UserDTO;
+import alexspeal.dto.UserDto;
+import alexspeal.dto.requests.JwtRequest;
+import alexspeal.dto.requests.RegistrationRequest;
+import alexspeal.dto.responses.GetUserResponse;
+import alexspeal.dto.responses.JwtResponse;
+import alexspeal.enums.ErrorMessage;
 import alexspeal.exceptions.AppError;
 import alexspeal.service.UserService;
 import alexspeal.utils.JwtTokenUtils;
@@ -17,8 +18,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,14 +35,14 @@ public class AuthController {
     @PostMapping("/auth")
     public ResponseEntity<?> createAuthToken(@RequestBody JwtRequest jwtRequest) {
         try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(jwtRequest.getUsername(), jwtRequest.getPassword()));
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(jwtRequest.username(), jwtRequest.password()));
         } catch (BadCredentialsException e) {
             //todo magic number
             return new ResponseEntity<>(new AppError(HttpStatus.UNAUTHORIZED.value(),
-                    "incorrect username or password"), HttpStatus.UNAUTHORIZED);
+                    ErrorMessage.INCORRECT_USER_DATA.getMessage()), HttpStatus.UNAUTHORIZED);
         }
 
-        UserDetails userDetails = userService.loadUserByUsername(jwtRequest.getUsername());
+        UserDetails userDetails = userService.loadUserByUsername(jwtRequest.username());
         String token = jwtTokenUtils.generateToken(userDetails);
 
         return ResponseEntity.ok(new JwtResponse(token));
@@ -51,12 +54,30 @@ public class AuthController {
     public ResponseEntity<?> registration(@Validated @RequestBody RegistrationRequest registrationRequest) {
 
         if (userService.findByUsername(registrationRequest.username()).isPresent()) {
-            return new ResponseEntity<>(new AppError(HttpStatus.BAD_REQUEST.value(), "The user with the specified name already exists"), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(new AppError(HttpStatus.BAD_REQUEST.value(), ErrorMessage.USER_EXISTS.getMessage()), HttpStatus.BAD_REQUEST);
         }
 
-        UserDTO userDTO = new UserDTO(registrationRequest.username(), registrationRequest.password());
+        UserDto userDTO = new UserDto(registrationRequest.username(), registrationRequest.password());
         userService.createNewUser(userDTO);
 
-        return ResponseEntity.ok(new RegistrationResponse(userDTO.username()));
+        return createAuthToken(new JwtRequest(registrationRequest.username(), registrationRequest.password()));
+    }
+
+    @GetMapping("/secured/checkToken")
+    public boolean checkToken() {
+        return true;
+    }
+
+    @GetMapping("/user")
+    public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        String jwtToken = authHeader.replace("Bearer ", "");
+        String username = jwtTokenUtils.getUsername(jwtToken);
+
+        return userService.findByUsername(username)
+                .map(user -> {
+                    GetUserResponse response = new GetUserResponse(user.getId(), user.getUsername());
+                    return ResponseEntity.ok(response);
+                })
+                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 }

@@ -1,6 +1,6 @@
 package alexspeal.service;
 
-import alexspeal.dto.UserDTO;
+import alexspeal.dto.UserDto;
 import alexspeal.entities.UserEntity;
 import alexspeal.mappers.UserMapper;
 import alexspeal.repositories.UserRepository;
@@ -39,8 +39,8 @@ public class UserService implements UserDetailsService {
         );
     }
 
-    public void createNewUser(UserDTO userDTO) {
-        UserDTO userWithPasswordDTO = new UserDTO(userDTO.username(), passwordEncoder.encode(userDTO.password()));
+    public void createNewUser(UserDto userDTO) {
+        UserDto userWithPasswordDTO = new UserDto(userDTO.username(), passwordEncoder.encode(userDTO.password()));
         UserEntity userEntity = UserMapper.UserDTOToUserEntity(userWithPasswordDTO);
         userRepository.save(userEntity);
     }

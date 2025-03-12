@@ -1,4 +1,4 @@
-package alexspeal.dto;
+package alexspeal.dto.requests;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;

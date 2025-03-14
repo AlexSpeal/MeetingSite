@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,6 +48,19 @@ public class EventService {
                         eventEntity.getAuthor().getId()
                 ))
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
+    }
+
+    public void scheduleEvent(Long eventId, LocalDateTime startTime) {
+        EventEntity event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
+
+        LocalDate scheduledDate = startTime.toLocalDate();
+
+        if (event.getPossibleDays() == null || !event.getPossibleDays().contains(scheduledDate)) {
+            throw new IllegalArgumentException(ErrorMessage.DATE_IS_NOT_INCLUDED.getMessage(startTime.toLocalDate()));
+        }
+
+        eventRepository.updateEventStartTime(eventId, startTime);
     }
 
     public Long createMeeting(UserEntity author, CreatingMeetingRequest meeting) {

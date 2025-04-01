@@ -24,6 +24,20 @@ import java.util.List;
 @Entity
 @Table(name = "event_participants")
 public class EventParticipantEntity {
+    public EventParticipantEntity(EventEntity event, UserEntity user, AcceptStatus status) {
+        super();
+        this.event = event;
+        this.user = user;
+        this.status = status;
+    }
+
+    public EventParticipantEntity(EventEntity event, UserEntity user, AcceptStatus status, List<LocalDate> selectedDays) {
+        super();
+        this.event = event;
+        this.user = user;
+        this.status = status;
+        this.selectedDays = selectedDays;
+    }
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -43,12 +57,4 @@ public class EventParticipantEntity {
     @Column(name = "selected_days", columnDefinition = "jsonb")
     @Type(JsonBinaryType.class)
     private List<LocalDate> selectedDays;
-
-
-    public EventParticipantEntity(EventEntity event, UserEntity user, AcceptStatus status) {
-        super();
-        this.event = event;
-        this.user = user;
-        this.status = status;
-    }
 }

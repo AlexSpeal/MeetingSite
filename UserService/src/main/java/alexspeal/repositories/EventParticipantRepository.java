@@ -15,7 +15,6 @@ import java.util.Optional;
 public interface EventParticipantRepository extends CrudRepository<EventParticipantEntity, Long> {
     List<EventParticipantEntity> findByEventId(long eventId);
 
-    //может не работать findByUserId (заменить на query запрос или передавать user)
     List<EventParticipantEntity> findByUserId(long participantId);
 
     Optional<EventParticipantEntity> findByUserIdAndEvent(long participantId, EventEntity event);

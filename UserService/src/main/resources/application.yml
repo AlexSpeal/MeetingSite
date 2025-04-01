@@ -1,6 +1,6 @@
 jwt:
   secret: ${SECRET}
-  lifetime: 30m
+  lifetime: 300m
 
 app:
   base-url-auth: http://localhost:8189
@@ -16,7 +16,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         enable_lazy_load_no_trans: true
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
 
 server:

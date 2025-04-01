@@ -1,6 +1,6 @@
 package alexspeal.dto;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
-public record BusyIntervalDto(LocalTime startTime, int duration) {
+public record BusyIntervalDto(LocalDateTime startTime, int duration) {
 }

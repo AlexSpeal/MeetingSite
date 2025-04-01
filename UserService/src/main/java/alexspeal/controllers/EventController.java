@@ -9,6 +9,7 @@ import alexspeal.entities.UserEntity;
 import alexspeal.enums.ErrorMessage;
 import alexspeal.exceptions.AppError;
 import alexspeal.service.EventService;
+import alexspeal.service.SchedulingService;
 import alexspeal.service.UserService;
 import alexspeal.utils.JwtTokenUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +40,7 @@ import java.util.NoSuchElementException;
 public class EventController {
     private final EventService eventService;
     private final UserService userService;
+    private final SchedulingService schedulingService;
     private final JwtTokenUtils jwtTokenUtils;
 
     private UserEntity getUserFromHeader(String authHeader) {
@@ -83,7 +85,7 @@ public class EventController {
             if (!event.author().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new AppError(HttpStatus.FORBIDDEN.value(), "Access denied"));
             }
-            AvailabilityResponse response = eventService.getMeetingAvailability(meetingId);
+            AvailabilityResponse response = schedulingService.getMeetingAvailability(meetingId);
             return ResponseEntity.ok(response);
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

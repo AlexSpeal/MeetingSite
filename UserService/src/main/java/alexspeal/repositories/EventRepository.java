@@ -17,12 +17,13 @@ import java.util.List;
 @Transactional
 public interface EventRepository extends CrudRepository<EventEntity, Long> {
     @Modifying
-    @Query("SELECT new alexspeal.dto.BusyIntervalDto(CAST(e.startTime AS LocalTime), e.duration) " +
+    @Query("SELECT new alexspeal.dto.BusyIntervalDto(e.startTime, e.duration) " +
             "FROM EventEntity e " +
             "LEFT JOIN e.eventParticipants ep ON ep.user.id = :userId " +
             "WHERE ((e.author.id = :userId AND e.startTime IS NOT NULL) OR (ep.id IS NOT NULL AND ep.status = 'ACCEPTED')) " +
-            "AND DATE(e.startTime) = :day")
-    List<BusyIntervalDto> getBusyIntervals(@Param("userId") Long userId, @Param("day") LocalDate day);
+            "AND DATE(e.startTime) IN :days")
+    List<BusyIntervalDto> getBusyIntervals(@Param("userId") Long userId, @Param("days") List<LocalDate> days);
+
 
     @Modifying
     @Query("UPDATE EventEntity e SET e.startTime = :startTime WHERE e.id = :meetingId")

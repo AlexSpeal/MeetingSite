@@ -1,8 +1,7 @@
 package alexspeal.dto.responses;
 
-import alexspeal.models.Slot;
-
+import java.time.LocalDateTime;
 import java.util.List;
 
-public record AvailabilityResponse(Long meetingId, List<Slot> possibleSlots) {
+public record AvailabilityResponse(Long meetingId, List<LocalDateTime> possibleSlots, Integer maxCount) {
 }

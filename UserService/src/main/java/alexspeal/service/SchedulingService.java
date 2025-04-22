@@ -1,11 +1,13 @@
 package alexspeal.service;
 
-import alexspeal.dto.BusyIntervalDto;
-import alexspeal.dto.responses.AvailabilityResponse;
+import alexspeal.dto.responses.AvailabilityIntervalsResponse;
+import alexspeal.entities.DayEntity;
 import alexspeal.entities.EventEntity;
 import alexspeal.entities.EventParticipantEntity;
-import alexspeal.enums.AcceptStatus;
+import alexspeal.enums.AcceptStatusParticipant;
+import alexspeal.enums.ErrorMessage;
 import alexspeal.enums.EventType;
+import alexspeal.models.Interval;
 import alexspeal.models.ParticipantSchedule;
 import alexspeal.models.TimeEvent;
 import alexspeal.models.TimeInterval;
@@ -14,6 +16,7 @@ import alexspeal.repositories.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -30,147 +33,183 @@ import java.util.stream.Stream;
 public class SchedulingService {
     private static final LocalTime WORK_START = LocalTime.of(9, 0);
     private static final LocalTime WORK_END = LocalTime.of(18, 0);
+
     private final EventRepository eventRepository;
     private final EventParticipantRepository eventParticipantRepository;
 
-    public AvailabilityResponse getMeetingAvailability(Long meetingId) {
+    public AvailabilityIntervalsResponse getMeetingAvailability(Long meetingId) {
         EventEntity meeting = eventRepository.findById(meetingId)
-                .orElseThrow(() -> new NoSuchElementException("Meeting not found"));
+                .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
+        int duration = meeting.getDuration();
 
-        List<EventParticipantEntity> participants = eventParticipantRepository
-                .findByEventIdAndStatus(meetingId, AcceptStatus.ACCEPTED);
+        boolean havePending = meeting.getEventParticipants().stream()
+                .anyMatch(p -> p.getStatus().equals(AcceptStatusParticipant.PENDING));
 
-        List<ParticipantSchedule> schedules = participants.stream()
-                .map(this::createParticipantSchedule)
-                .toList();
+        Long authorId = meeting.getAuthor().getId();
+        EventParticipantEntity authorPart = eventParticipantRepository
+                .findByEventIdAndUserId(meetingId, authorId)
+                .orElseThrow(() -> new IllegalStateException(ErrorMessage.NOT_FOUND_AUTHOR.getMessage()));
+        List<LocalDate> dates = authorPart.getDays().stream().map(DayEntity::getDate).toList();
 
-        Map<LocalDateTime, Integer> slotAvailability = calculateAvailability(
-                meeting.getPossibleDays(),
-                schedules,
-                meeting.getDuration()
-        );
+        List<EventParticipantEntity> acceptedParticipants = eventParticipantRepository
+                .findByEventIdAndStatus(meetingId, AcceptStatusParticipant.ACCEPTED);
 
-        return buildResponse(meetingId, slotAvailability);
+        ParticipantSchedule authorSchedule = createParticipantSchedule(authorPart, duration);
+        List<ParticipantSchedule> schedules = Stream.concat(
+                Stream.of(authorSchedule),
+                acceptedParticipants.stream()
+                        .filter(p -> !p.getUser().getId().equals(authorId))
+                        .map(p -> createParticipantSchedule(p, duration))
+        ).toList();
+
+        List<Interval> intervals = new ArrayList<>();
+        int maxParticipants = 0;
+
+        for (LocalDate date : dates) {
+            Map<LocalDateTime, Integer> availability = computeAvailability(date, schedules, duration);
+            int dateMaxParticipants = availability.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+            maxParticipants = Math.max(maxParticipants, dateMaxParticipants);
+
+            List<TimeInterval> authorAvail = authorSchedule.availability().getOrDefault(date, List.of());
+            List<LocalDateTime> slots = availability.entrySet().stream()
+                    .filter(e -> e.getValue() >= dateMaxParticipants)
+                    .map(Map.Entry::getKey)
+                    .filter(dt -> {
+                        LocalDateTime endDt = dt.plusMinutes(duration);
+                        return !endDt.toLocalTime().isAfter(WORK_END) &&
+                                authorAvail.stream().anyMatch(iv ->
+                                        !dt.toLocalTime().isBefore(iv.start()) &&
+                                                !endDt.toLocalTime().isAfter(iv.end()));
+                    })
+                    .sorted()
+                    .toList();
+
+            intervals.addAll(groupToIntervals(date, slots));
+        }
+
+        return new AvailabilityIntervalsResponse(meetingId, intervals, maxParticipants, havePending);
     }
 
+    private List<Interval> groupToIntervals(LocalDate date, List<LocalDateTime> slots) {
+        if (slots.isEmpty()) return List.of();
 
-    private ParticipantSchedule createParticipantSchedule(EventParticipantEntity participant) {
+        List<Interval> intervals = new ArrayList<>();
+        LocalDateTime start = slots.getFirst();
+        LocalDateTime prev = start;
+
+        for (LocalDateTime current : slots.subList(1, slots.size())) {
+            if (current.minusMinutes(1).isAfter(prev)) {
+                intervals.add(new Interval(date, start.toLocalTime(), prev.toLocalTime()));
+                start = current;
+            }
+            prev = current;
+        }
+
+        intervals.add(new Interval(date, start.toLocalTime(), prev.toLocalTime()));
+
+        return intervals;
+    }
+
+    private ParticipantSchedule createParticipantSchedule(EventParticipantEntity participant, int duration) {
+        List<LocalDate> selectedDays = participant.getDays().stream().map(DayEntity::getDate).toList();
         Map<LocalDate, List<TimeInterval>> availability = new HashMap<>();
 
-        eventRepository.getBusyIntervals(participant.getUser().getId(), participant.getSelectedDays())
-                .forEach(dto -> processBusyInterval(dto, availability));
+        Map<LocalDate, List<TimeInterval>> busy = new HashMap<>();
+        eventRepository.getBusyIntervals(participant.getUser().getId(), selectedDays)
+                .forEach(dto -> {
+                    LocalDateTime start = dto.startTime();
+                    LocalDateTime end = start.plusMinutes(dto.duration());
+                    LocalDate day = start.toLocalDate();
 
-        participant.getSelectedDays().forEach(day ->
-                availability.putIfAbsent(day, List.of(new TimeInterval(WORK_START, WORK_END)))
-        );
+                    if (selectedDays.contains(day)) {
+                        LocalTime dayStart = clampTime(start.toLocalTime());
+                        LocalTime dayEnd = clampTime(end.toLocalTime());
+                        busy.computeIfAbsent(day, k -> new ArrayList<>())
+                                .add(new TimeInterval(dayStart, dayEnd));
+                    }
+                });
 
-        return new ParticipantSchedule(participant.getSelectedDays(), availability);
+        for (LocalDate day : selectedDays) {
+            List<TimeInterval> busyIntervals = busy.getOrDefault(day, List.of());
+            List<TimeInterval> available = subtractIntervals(new TimeInterval(WORK_START, WORK_END), busyIntervals);
+            List<TimeInterval> filteredAvailable = available.stream()
+                    .filter(iv -> Duration.between(iv.start(), iv.end()).toMinutes() >= duration)
+                    .toList();
+            availability.put(day, filteredAvailable);
+        }
+
+        return new ParticipantSchedule(selectedDays, availability);
     }
 
-    private void processBusyInterval(BusyIntervalDto dto, Map<LocalDate, List<TimeInterval>> availability) {
-        LocalDateTime start = dto.startTime();
-        LocalDateTime end = start.plusMinutes(dto.duration());
+    private List<TimeInterval> subtractIntervals(TimeInterval full, List<TimeInterval> busy) {
+        List<TimeInterval> result = new ArrayList<>();
+        LocalTime cursor = full.start();
 
-        start.toLocalDate().datesUntil(end.toLocalDate().plusDays(1)).forEach(day -> {
-            LocalTime dayStart = day.equals(start.toLocalDate()) ? start.toLocalTime() : WORK_START;
-            LocalTime dayEnd = day.equals(end.toLocalDate()) ? end.toLocalTime() : WORK_END;
+        for (TimeInterval b : busy.stream().sorted(Comparator.comparing(TimeInterval::start)).toList()) {
+            if (b.start().isAfter(cursor)) {
+                result.add(new TimeInterval(cursor, b.start()));
+            }
+            cursor = b.end().isAfter(cursor) ? b.end() : cursor;
+        }
 
-            availability.compute(day, (k, v) -> {
-                List<TimeInterval> intervals = v != null ? v : new ArrayList<>();
-                intervals.add(new TimeInterval(
-                        clampTime(dayStart),
-                        clampTime(dayEnd)
-                ));
-                return intervals;
-            });
-        });
-    }
-
-    private LocalTime clampTime(LocalTime time) {
-        if (time.isBefore(WORK_START)) return WORK_START;
-        if (time.isAfter(WORK_END)) return WORK_END;
-        return time;
-    }
-
-    private Map<LocalDateTime, Integer> calculateAvailability(
-            List<LocalDate> days,
-            List<ParticipantSchedule> schedules,
-            int slotDuration) {
-
-        Map<LocalDateTime, Integer> result = new HashMap<>();
-
-        days.forEach(day -> {
-            List<TimeEvent> events = collectDayEvents(day, schedules);
-            processDayEvents(day, events, schedules.size(), slotDuration, result);
-        });
+        if (cursor.isBefore(full.end())) {
+            result.add(new TimeInterval(cursor, full.end()));
+        }
 
         return result;
     }
 
-    private List<TimeEvent> collectDayEvents(LocalDate day, List<ParticipantSchedule> schedules) {
-        return schedules.stream()
-                .filter(s -> s.selectedDays().contains(day))
-                .flatMap(s -> s.availability().getOrDefault(day, List.of()).stream()
-                        .flatMap(i -> Stream.of(
-                                new TimeEvent(i.start(), EventType.START),
-                                new TimeEvent(i.end(), EventType.END)
-                        )))
-                .sorted(Comparator.comparing(TimeEvent::time))
-                .toList();
+    private LocalTime clampTime(LocalTime time) {
+        return time.isBefore(WORK_START) ? WORK_START :
+                time.isAfter(WORK_END) ? WORK_END : time;
     }
 
-    private void processDayEvents(LocalDate day,
-                                  List<TimeEvent> events,
-                                  int totalParticipants,
-                                  int slotDuration,
-                                  Map<LocalDateTime, Integer> result) {
-        int currentBusy = 0;
-        LocalTime currentStart = WORK_START;
+    private Map<LocalDateTime, Integer> computeAvailability(LocalDate day, List<ParticipantSchedule> schedules, int duration) {
+        List<TimeEvent> events = schedules.stream()
+                .filter(s -> s.selectedDays().contains(day))
+                .flatMap(s -> s.availability().getOrDefault(day, List.of()).stream()
+                        .flatMap(iv -> Stream.of(
+                                new TimeEvent(iv.start(), EventType.START),
+                                new TimeEvent(iv.end(), EventType.END))))
+                .sorted(Comparator.comparing(TimeEvent::time))
+                .toList();
+
+        Map<LocalDateTime, Integer> result = new HashMap<>();
+        int available = 0;
+        LocalTime cursor = WORK_START;
 
         for (TimeEvent event : events) {
             if (event.time().isAfter(WORK_END)) break;
 
-            if (!currentStart.equals(event.time())) {
-                addTimeSlots(day, currentStart, event.time(), totalParticipants - currentBusy, slotDuration, result);
+            if (!cursor.equals(event.time())) {
+                final int currentAvailable = available;
+                generateTimeSlots(day, cursor, event.time(), duration)
+                        .forEach(slot -> result.put(slot, currentAvailable));
             }
 
-            currentBusy += event.type() == EventType.START ? 1 : -1;
-            currentStart = event.time();
+            available += event.type() == EventType.START ? 1 : -1;
+            cursor = event.time();
         }
 
-        addTimeSlots(day, currentStart, WORK_END, totalParticipants - currentBusy, slotDuration, result);
-    }
+        if (cursor.isBefore(WORK_END)) {
+            final int currentAvailable = available;
+            generateTimeSlots(day, cursor, WORK_END, duration)
+                    .forEach(slot -> result.put(slot, currentAvailable));
+        }
 
-    private void addTimeSlots(LocalDate day,
-                              LocalTime start,
-                              LocalTime end,
-                              int available,
-                              int duration,
-                              Map<LocalDateTime, Integer> result) {
-        if (available <= 0 || start.isAfter(end)) return;
-
-        generateTimeSlots(day, start, end, duration)
-                .forEach(slot -> result.merge(slot, available, Math::max));
+        return result;
     }
 
     private List<LocalDateTime> generateTimeSlots(LocalDate day, LocalTime start, LocalTime end, int duration) {
-        return Stream.iterate(start, t -> !t.plusMinutes(duration).isAfter(end), t -> t.plusMinutes(duration))
-                .map(t -> LocalDateTime.of(day, t))
-                .toList();
-    }
+        List<LocalDateTime> slots = new ArrayList<>();
+        LocalDateTime slot = LocalDateTime.of(day, start);
+        LocalDateTime windowEnd = LocalDateTime.of(day, end);
 
-    private AvailabilityResponse buildResponse(Long meetingId, Map<LocalDateTime, Integer> availability) {
-        if (availability.isEmpty()) {
-            return new AvailabilityResponse(meetingId, List.of(), 0);
+        while (!slot.plusMinutes(duration).isAfter(windowEnd)) {
+            slots.add(slot);
+            slot = slot.plusMinutes(1);
         }
 
-        int max = availability.values().stream().max(Integer::compare).orElse(0);
-        List<LocalDateTime> bestSlots = availability.entrySet().stream()
-                .filter(e -> e.getValue() == max)
-                .map(Map.Entry::getKey)
-                .sorted()
-                .toList();
-
-        return new AvailabilityResponse(meetingId, bestSlots, max);
+        return slots;
     }
 }

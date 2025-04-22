@@ -12,8 +12,9 @@ public enum ErrorMessage {
     USER_IS_NOT_A_PARTICIPANT("Пользователь не является участником встречи"),
     INCORRECT_STATUS("Некорректный статус ответа"),
     DATE_ALREADY_PASSED("Дата уже прошла: "),
-    DATE_IS_NOT_INCLUDED("Выбранная дата %s не входит в доступные дни встречи");
-
+    DATE_IS_NOT_INCLUDED("Выбранная дата %s не входит в доступные дни встречи"),
+    NOT_FOUND_AUTHOR("Автор не найден среди участников"),
+    FORBIDDEN("Доступ запрещен");
     private final String message;
 
     public String getMessage(Object... args) {

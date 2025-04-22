@@ -1,7 +1,6 @@
 package alexspeal.entities;
 
-import alexspeal.enums.AcceptStatus;
-import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
+import alexspeal.enums.AcceptStatusEvent;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,11 +15,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Type;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 
 @NoArgsConstructor
@@ -28,44 +24,42 @@ import java.util.List;
 @Data
 @Table(name="events")
 public class EventEntity {
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private AcceptStatusEvent status;
 
     @Column(name = "description")
     private String description;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Column(name = "title")
     private String title;
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    private AcceptStatus status;
+    @Column(name = "is_personal")
+    private Boolean isPersonal;
     @Column(name = "start_time")
     private LocalDateTime startTime;
     @Column(name = "duration")
     private Integer duration;
-    @Column(name = "possible_days", columnDefinition = "jsonb")
-    @Type(JsonBinaryType.class)
-    private List<LocalDate> possibleDays;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EventParticipantEntity> eventParticipants;
 
-    public EventEntity(String title, String description, AcceptStatus status,
-                       LocalDateTime startTime, Integer duration,
-                       List<LocalDate> possibleDays, UserEntity author) {
+    @ManyToOne
+    @JoinColumn(name = "author_id", nullable = false)
+    private UserEntity author;
+
+    public EventEntity(String title, String description, AcceptStatusEvent status,
+                       LocalDateTime startTime, Integer duration, UserEntity author, boolean isPersonal) {
         super();
         this.title = title;
         this.description = description;
         this.status = status;
         this.startTime = startTime;
         this.duration = duration;
-        this.possibleDays = possibleDays;
         this.author = author;
+        this.isPersonal = isPersonal;
+        this.createdAt = LocalDateTime.now();
     }
-
-    @ManyToOne
-    @JoinColumn(name = "author_id", nullable = false)
-    private UserEntity author;
-
-    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Collection<EventParticipantEntity> eventParticipants;
 }

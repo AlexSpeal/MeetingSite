@@ -1,6 +1,6 @@
 package alexspeal.enums;
 
-public enum AcceptStatus {
+public enum AcceptStatusEvent {
     PENDING,
     ACCEPTED,
     DECLINED

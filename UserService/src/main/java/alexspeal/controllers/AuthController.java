@@ -85,7 +85,7 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<?> registration(@Validated @RequestBody RegistrationRequest registrationRequest) {
 
-        if (userService.findByUsername(registrationRequest.username()).isPresent()) {
+        if (userService.findUserEntityByUsername(registrationRequest.username()).isPresent()) {
             return new ResponseEntity<>(new AppError(HttpStatus.BAD_REQUEST.value(), ErrorMessage.USER_EXISTS.getMessage()), HttpStatus.BAD_REQUEST);
         }
 
@@ -126,12 +126,12 @@ public class AuthController {
             )
     })
     @SecurityRequirement(name = "bearerAuth")
-    @GetMapping("/user")
+    @GetMapping("secured/user")
     public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
         String jwtToken = authHeader.replace("Bearer ", "");
         String username = jwtTokenUtils.getUsername(jwtToken);
 
-        return userService.findByUsername(username)
+        return userService.findUserEntityByUsername(username)
                 .map(user -> {
                     GetUserResponse response = new GetUserResponse(user.getId(), user.getUsername());
                     return ResponseEntity.ok(response);

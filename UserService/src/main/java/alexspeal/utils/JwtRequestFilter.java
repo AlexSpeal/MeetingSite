@@ -20,7 +20,6 @@ import java.util.Collections;
 @AllArgsConstructor
 @Slf4j
 @Component
-//todo magic number
 public class JwtRequestFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";

@@ -34,7 +34,7 @@ create table events
     created_at  timestamp(6) not null,
     start_time  timestamp(6),
     description varchar(255),
-    status      varchar(255) not null check (status in ('PENDING', 'ACCEPTED', 'DECLINED')),
+    status      varchar(255) not null check (status in ('PENDING', 'ACCEPTED')),
     title       varchar(255),
     constraint events_author_id_fk foreign key (author_id) references users on delete cascade,
     constraint duration_check check (duration > 0)

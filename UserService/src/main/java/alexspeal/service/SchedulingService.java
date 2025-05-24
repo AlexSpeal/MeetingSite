@@ -111,10 +111,14 @@ public class SchedulingService {
     }
 
     private ParticipantSchedule createParticipantSchedule(EventParticipantEntity participant, int duration) {
-        List<LocalDate> selectedDays = participant.getDays().stream().map(DayEntity::getDate).toList();
-        Map<LocalDate, List<TimeInterval>> availability = new HashMap<>();
+        List<LocalDate> selectedDays = participant.getDays()
+                .stream()
+                .map(DayEntity::getDate)
+                .toList();
 
+        Map<LocalDate, List<TimeInterval>> availability = new HashMap<>();
         Map<LocalDate, List<TimeInterval>> busy = new HashMap<>();
+
         eventRepository.getBusyIntervals(participant.getUser().getId(), selectedDays)
                 .forEach(dto -> {
                     LocalDateTime start = dto.startTime();
@@ -122,10 +126,8 @@ public class SchedulingService {
                     LocalDate day = start.toLocalDate();
 
                     if (selectedDays.contains(day)) {
-                        LocalTime dayStart = clampTime(start.toLocalTime());
-                        LocalTime dayEnd = clampTime(end.toLocalTime());
                         busy.computeIfAbsent(day, k -> new ArrayList<>())
-                                .add(new TimeInterval(dayStart, dayEnd));
+                                .add(new TimeInterval(start.toLocalTime(), end.toLocalTime()));
                     }
                 });
 
@@ -144,8 +146,11 @@ public class SchedulingService {
     private List<TimeInterval> subtractIntervals(TimeInterval full, List<TimeInterval> busy) {
         List<TimeInterval> result = new ArrayList<>();
         LocalTime cursor = full.start();
+        List<TimeInterval> sortedBusy = busy.stream()
+                .sorted(Comparator.comparing(TimeInterval::start))
+                .toList();
 
-        for (TimeInterval b : busy.stream().sorted(Comparator.comparing(TimeInterval::start)).toList()) {
+        for (TimeInterval b : sortedBusy) {
             if (b.start().isAfter(cursor)) {
                 result.add(new TimeInterval(cursor, b.start()));
             }
@@ -157,11 +162,6 @@ public class SchedulingService {
         }
 
         return result;
-    }
-
-    private LocalTime clampTime(LocalTime time) {
-        return time.isBefore(WORK_START) ? WORK_START :
-                time.isAfter(WORK_END) ? WORK_END : time;
     }
 
     private Map<LocalDateTime, Integer> computeAvailability(LocalDate day, List<ParticipantSchedule> schedules, int duration) {
@@ -177,7 +177,6 @@ public class SchedulingService {
         Map<LocalDateTime, Integer> result = new HashMap<>();
         int available = 0;
         LocalTime cursor = WORK_START;
-
         for (TimeEvent event : events) {
             if (event.time().isAfter(WORK_END)) break;
 
@@ -189,12 +188,6 @@ public class SchedulingService {
 
             available += event.type() == EventType.START ? 1 : -1;
             cursor = event.time();
-        }
-
-        if (cursor.isBefore(WORK_END)) {
-            final int currentAvailable = available;
-            generateTimeSlots(day, cursor, WORK_END, duration)
-                    .forEach(slot -> result.put(slot, currentAvailable));
         }
 
         return result;

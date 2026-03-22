@@ -16,7 +16,7 @@ import java.util.List;
 
 @Repository
 @Transactional
-public interface EventRepository extends CrudRepository<EventEntity, Long> {
+public interface MeetingRepository extends CrudRepository<EventEntity, Long> {
     @Query("""
                 SELECT new alexspeal.dto.BusyIntervalDto(e.startTime, e.duration)
                 FROM EventEntity e

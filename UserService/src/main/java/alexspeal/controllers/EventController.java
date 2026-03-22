@@ -108,7 +108,7 @@ public class EventController {
             )
     })
     @GetMapping("/{meeting_id}/availability")
-    public ResponseEntity<?> getMeetingAvailability(
+    public ResponseEntity<?> getEventAvailability(
             @Parameter(description = "JWT токен авторизации", required = true,
                     example = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
             @RequestHeader("Authorization") String authHeader,
@@ -155,13 +155,13 @@ public class EventController {
             )
     })
     @PostMapping
-    public ResponseEntity<?> createMeeting(
+    public ResponseEntity<?> createEvent(
             @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
             @RequestBody CreatingMeetingRequest request
     ) {
         try {
             UserEntity author = getUserFromHeader(authHeader);
-            EventDto meeting = eventService.createMeeting(author, request);
+            EventDto meeting = eventService.createEvent(author, request);
             notifyParticipants(meeting, WebSocketAction.CREATE, meeting);
             return ResponseEntity.ok(meeting);
         } catch (NoSuchElementException e) {
@@ -194,7 +194,7 @@ public class EventController {
             )
     })
     @PostMapping("/{meeting_id}/selectDays")
-    public ResponseEntity<?> acceptMeeting(
+    public ResponseEntity<?> acceptEvent(
             @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "ID встречи", required = true, example = "12345") @PathVariable("meeting_id") Long meetingId,
             @RequestBody AcceptMeetingRequest request
@@ -246,7 +246,7 @@ public class EventController {
             )
     })
     @PutMapping("/{meeting_id}/schedule")
-    public ResponseEntity<?> scheduleMeeting(
+    public ResponseEntity<?> scheduleEvent(
             @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "ID встречи", required = true) @PathVariable("meeting_id") Long meetingId,
             @RequestBody ScheduleRequest request

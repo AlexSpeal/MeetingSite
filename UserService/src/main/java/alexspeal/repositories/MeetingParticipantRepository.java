@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Repository
 @Transactional
-public interface EventParticipantRepository extends CrudRepository<EventParticipantEntity, Long> {
+public interface MeetingParticipantRepository extends CrudRepository<EventParticipantEntity, Long> {
     List<EventParticipantEntity> findByEventId(long eventId);
 
     Optional<EventParticipantEntity> findByUserIdAndEvent(long participantId, EventEntity event);

@@ -11,8 +11,8 @@ import alexspeal.models.Interval;
 import alexspeal.models.ParticipantSchedule;
 import alexspeal.models.TimeEvent;
 import alexspeal.models.TimeInterval;
-import alexspeal.repositories.EventParticipantRepository;
-import alexspeal.repositories.EventRepository;
+import alexspeal.repositories.MeetingParticipantRepository;
+import alexspeal.repositories.MeetingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,13 +32,13 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class SchedulingService {
     private static final LocalTime WORK_START = LocalTime.of(9, 0);
-    private static final LocalTime WORK_END = LocalTime.of(18, 0);
+    private static final LocalTime WORK_END = LocalTime.of(13, 0);
 
-    private final EventRepository eventRepository;
-    private final EventParticipantRepository eventParticipantRepository;
+    private final MeetingRepository meetingRepository;
+    private final MeetingParticipantRepository meetingParticipantRepository;
 
     public AvailabilityIntervalsResponse getMeetingAvailability(Long meetingId) {
-        EventEntity meeting = eventRepository.findById(meetingId)
+        EventEntity meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
         int duration = meeting.getDuration();
 
@@ -46,12 +46,12 @@ public class SchedulingService {
                 .anyMatch(p -> p.getStatus().equals(AcceptStatusParticipant.PENDING));
 
         Long authorId = meeting.getAuthor().getId();
-        EventParticipantEntity authorPart = eventParticipantRepository
+        EventParticipantEntity authorPart = meetingParticipantRepository
                 .findByEventIdAndUserId(meetingId, authorId)
                 .orElseThrow(() -> new IllegalStateException(ErrorMessage.NOT_FOUND_AUTHOR.getMessage()));
         List<LocalDate> dates = authorPart.getDays().stream().map(DayEntity::getDate).toList();
 
-        List<EventParticipantEntity> acceptedParticipants = eventParticipantRepository
+        List<EventParticipantEntity> acceptedParticipants = meetingParticipantRepository
                 .findByEventIdAndStatus(meetingId, AcceptStatusParticipant.ACCEPTED);
 
         ParticipantSchedule authorSchedule = createParticipantSchedule(authorPart, duration);
@@ -119,7 +119,7 @@ public class SchedulingService {
         Map<LocalDate, List<TimeInterval>> availability = new HashMap<>();
         Map<LocalDate, List<TimeInterval>> busy = new HashMap<>();
 
-        eventRepository.getBusyIntervals(participant.getUser().getId(), selectedDays)
+        meetingRepository.getBusyIntervals(participant.getUser().getId(), selectedDays)
                 .forEach(dto -> {
                     LocalDateTime start = dto.startTime();
                     LocalDateTime end = start.plusMinutes(dto.duration());

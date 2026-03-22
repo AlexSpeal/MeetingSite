@@ -7,7 +7,7 @@ import alexspeal.entities.EventEntity;
 import alexspeal.entities.EventParticipantEntity;
 import alexspeal.enums.ErrorMessage;
 import alexspeal.repositories.DayRepository;
-import alexspeal.repositories.EventParticipantRepository;
+import alexspeal.repositories.MeetingParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -16,14 +16,14 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class EventMapper {
+public class MeetingMapper {
 
     private final EventParticipantMapper participantMapper;
     private final DayRepository dayRepository;
-    private final EventParticipantRepository eventParticipantRepository;
+    private final MeetingParticipantRepository meetingParticipantRepository;
 
     public EventDto toEventDto(EventEntity event) {
-        EventParticipantEntity authorParticipant = eventParticipantRepository
+        EventParticipantEntity authorParticipant = meetingParticipantRepository
                 .findByEventIdAndUserId(event.getId(), event.getAuthor().getId())
                 .orElseThrow(() -> new IllegalStateException(ErrorMessage.NOT_FOUND_AUTHOR.getMessage()));
 
@@ -33,7 +33,7 @@ public class EventMapper {
                 .map(DayEntity::getDate)
                 .toList();
 
-        List<EventParticipantsDto> participants = eventParticipantRepository
+        List<EventParticipantsDto> participants = meetingParticipantRepository
                 .findByEventId(event.getId())
                 .stream()
                 .map(participantMapper::toEventParticipantsDto)

@@ -12,10 +12,10 @@ import alexspeal.enums.AcceptStatusEvent;
 import alexspeal.enums.AcceptStatusParticipant;
 import alexspeal.enums.ErrorMessage;
 import alexspeal.enums.SortOption;
-import alexspeal.mappers.EventMapper;
+import alexspeal.mappers.MeetingMapper;
 import alexspeal.repositories.DayRepository;
-import alexspeal.repositories.EventParticipantRepository;
-import alexspeal.repositories.EventRepository;
+import alexspeal.repositories.MeetingParticipantRepository;
+import alexspeal.repositories.MeetingRepository;
 import alexspeal.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,27 +33,27 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EventService {
 
-    private final EventRepository eventRepository;
+    private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
-    private final EventParticipantRepository eventParticipantRepository;
+    private final MeetingParticipantRepository meetingParticipantRepository;
     private final DayRepository dayRepository;
-    private final EventMapper eventMapper;
+    private final MeetingMapper meetingMapper;
 
 
     public EventDto getEventById(Long id) {
-        return eventRepository.findById(id)
-                .map(eventMapper::toEventDto)
+        return meetingRepository.findById(id)
+                .map(meetingMapper::toEventDto)
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
     }
 
     @Transactional(readOnly = true)
     public List<EventDto> getAllUserEvents(Long id, SortOption sortOption) {
-        List<EventEntity> eventList = eventRepository.getAllUserEvents(id);
+        List<EventEntity> eventList = meetingRepository.getAllUserEvents(id);
         if (eventList == null || eventList.isEmpty()) {
             return List.of();
         }
         List<EventDto> eventDtoList = eventList.stream()
-                .map(eventMapper::toEventDto)
+                .map(meetingMapper::toEventDto)
                 .collect(Collectors.toCollection(ArrayList::new));
 
         Comparator<EventDto> comparator = switch (sortOption) {
@@ -72,13 +72,13 @@ public class EventService {
 
     @Transactional
     public EventDto scheduleEvent(Long eventId, LocalDateTime startTime) {
-        EventEntity event = eventRepository.findById(eventId)
+        EventEntity event = meetingRepository.findById(eventId)
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
 
         int duration = event.getDuration();
         LocalDate scheduledDate = startTime.toLocalDate();
 
-        EventParticipantEntity authorParticipant = eventParticipantRepository
+        EventParticipantEntity authorParticipant = meetingParticipantRepository
                 .findByEventIdAndUserId(eventId, event.getAuthor().getId())
                 .orElseThrow(() -> new IllegalStateException(ErrorMessage.NOT_FOUND_AUTHOR.getMessage()));
 
@@ -91,7 +91,7 @@ public class EventService {
             throw new IllegalArgumentException(ErrorMessage.DATE_IS_NOT_INCLUDED.getMessage(scheduledDate));
         }
 
-        List<EventParticipantEntity> participants = eventParticipantRepository
+        List<EventParticipantEntity> participants = meetingParticipantRepository
                 .findByEventId(eventId)
                 .stream()
                 .filter(p -> !p.getUser().getId().equals(event.getAuthor().getId()))
@@ -108,7 +108,7 @@ public class EventService {
                 continue;
             }
 
-            List<BusyIntervalDto> busyIntervals = eventRepository
+            List<BusyIntervalDto> busyIntervals = meetingRepository
                     .getBusyIntervals(userId, List.of(scheduledDate));
 
             boolean overlaps = busyIntervals.stream().anyMatch(interval -> {
@@ -123,18 +123,18 @@ public class EventService {
             }
         }
 
-        eventParticipantRepository.saveAll(participants);
-        eventRepository.updateEventStartTimeAndStatus(eventId, startTime, AcceptStatusEvent.ACCEPTED);
+        meetingParticipantRepository.saveAll(participants);
+        meetingRepository.updateEventStartTimeAndStatus(eventId, startTime, AcceptStatusEvent.ACCEPTED);
 
         event.setStartTime(startTime);
         event.setStatus(AcceptStatusEvent.ACCEPTED);
 
-        return eventMapper.toEventDto(event);
+        return meetingMapper.toEventDto(event);
     }
 
 
     @Transactional
-    public EventDto createMeeting(UserEntity author, CreatingMeetingRequest meeting) {
+    public EventDto createEvent(UserEntity author, CreatingMeetingRequest meeting) {
         validateDates(meeting.possibleDays());
 
         EventEntity eventEntity = new EventEntity(
@@ -146,9 +146,9 @@ public class EventService {
                 author,
                 meeting.participants().isEmpty()
         );
-        eventEntity = eventRepository.save(eventEntity);
+        eventEntity = meetingRepository.save(eventEntity);
 
-        EventParticipantEntity authorParticipant = eventParticipantRepository.save(
+        EventParticipantEntity authorParticipant = meetingParticipantRepository.save(
                 new EventParticipantEntity(
                         eventEntity,
                         author,
@@ -163,24 +163,24 @@ public class EventService {
             addParticipantsToEvent(eventEntity, meeting.participants());
         }
 
-        return eventMapper.toEventDto(eventEntity);
+        return meetingMapper.toEventDto(eventEntity);
     }
 
     @Transactional
     public void deleteEvent(Long eventId) {
-        eventRepository.deleteById(eventId);
+        meetingRepository.deleteById(eventId);
     }
 
     @Transactional
     public void acceptEvent(UserEntity user, AcceptMeetingRequest acceptMeetingRequest, Long meetingId) {
-        EventEntity event = eventRepository.findById(meetingId)
+        EventEntity event = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
 
-        EventParticipantEntity participant = eventParticipantRepository
+        EventParticipantEntity participant = meetingParticipantRepository
                 .findByUserIdAndEvent(user.getId(), event)
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.USER_IS_NOT_A_PARTICIPANT.getMessage()));
 
-        EventParticipantEntity authorParticipant = eventParticipantRepository
+        EventParticipantEntity authorParticipant = meetingParticipantRepository
                 .findByEventIdAndUserId(meetingId, event.getAuthor().getId())
                 .orElseThrow(() -> new IllegalStateException(ErrorMessage.NOT_FOUND_AUTHOR.getMessage()));
 
@@ -197,12 +197,12 @@ public class EventService {
             dayRepository.deleteByEventParticipantId(participant.getId());
 
             List<DayEntity> selectedDayEntities = createDayEntities(participant, acceptMeetingRequest.selectedDays());
-            eventParticipantRepository.save(participant);
+            meetingParticipantRepository.save(participant);
             dayRepository.saveAll(selectedDayEntities);
         } else if (acceptMeetingRequest.status() == AcceptStatusParticipant.DECLINED) {
             participant.setStatus(AcceptStatusParticipant.DECLINED);
             dayRepository.deleteByEventParticipantId(participant.getId());
-            eventParticipantRepository.deleteById(participant.getId());
+            meetingParticipantRepository.deleteById(participant.getId());
         } else {
             throw new IllegalArgumentException(ErrorMessage.INCORRECT_STATUS.getMessage());
         }
@@ -241,7 +241,7 @@ public class EventService {
                 .filter(user -> !user.getId().equals(eventEntity.getAuthor().getId()))
                 .map(user -> new EventParticipantEntity(eventEntity, user, AcceptStatusParticipant.PENDING))
                 .toList();
-        eventParticipantRepository.saveAll(participants);
+        meetingParticipantRepository.saveAll(participants);
     }
 
     private List<DayEntity> createDayEntities(EventParticipantEntity participant, List<LocalDate> dates) {

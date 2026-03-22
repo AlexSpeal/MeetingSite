@@ -42,9 +42,9 @@ public class UserController {
     }
 
     @GetMapping("/{user_id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long user_id) {
+    public ResponseEntity<?> getUserById(@PathVariable("user_id") Long userId) {
         try {
-            UserDetailsDto userDetails = userService.findById(user_id);
+            UserDetailsDto userDetails = userService.findById(userId);
             return ResponseEntity.ok(userDetails);
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorMessage.USER_NOT_FOUND_BY_ID.getMessage());

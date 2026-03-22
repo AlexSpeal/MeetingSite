@@ -11,6 +11,7 @@ public record EventParticipantsDto(
         Long userId,
         UserDetailsDto user,
         AcceptStatusParticipant status,
-        List<LocalDate> selectedDays
+        List<LocalDate> selectedDays,
+        boolean required
 ) {
 }

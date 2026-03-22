@@ -28,7 +28,8 @@ public class EventParticipantMapper {
                 participant.getUser().getId(),
                 UserMapper.toUserDetailsDto(participant.getUser()),
                 participant.getStatus(),
-                selectedDays
+                selectedDays,
+                participant.isRequired()
         );
     }
 }

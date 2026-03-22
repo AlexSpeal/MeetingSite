@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public enum ErrorMessage {
-    USER_NOT_FOUND_BY_ID("Пользователь с id %d не найден"),
+    USER_NOT_FOUND_BY_ID("Пользователь с userId %d не найден"),
     USER_EXISTS("Пользователь с таким именем уже существует"),
     USER_NOT_FOUND_BY_USERNAME("Пользователь с таким именем не найден"),
     INCORRECT_USER_DATA("Логин или пароль неверны"),

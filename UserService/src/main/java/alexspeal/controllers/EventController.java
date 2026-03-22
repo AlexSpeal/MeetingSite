@@ -11,10 +11,12 @@ import alexspeal.enums.AcceptStatusParticipant;
 import alexspeal.enums.ErrorMessage;
 import alexspeal.enums.WebSocketAction;
 import alexspeal.exceptions.AppError;
+import alexspeal.helpers.WebSocketsNotifier;
 import alexspeal.models.WebSocketMessage;
 import alexspeal.service.EventService;
 import alexspeal.service.SchedulingService;
 import alexspeal.service.UserService;
+import alexspeal.utils.JwtIdentificationUtils;
 import alexspeal.utils.JwtTokenUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -46,18 +48,9 @@ import java.util.NoSuchElementException;
 @SecurityRequirement(name = "bearerAuth")
 public class EventController {
     private final EventService eventService;
-    private final UserService userService;
     private final SchedulingService schedulingService;
-    private final JwtTokenUtils jwtTokenUtils;
-    private final SimpMessagingTemplate messagingTemplate;
-
-    private UserEntity getUserFromHeader(String authHeader) {
-        String jwtToken = authHeader.replace("Bearer ", "");
-        String username = jwtTokenUtils.getUsername(jwtToken);
-        return userService.findUserEntityByUsername(username)
-                .orElseThrow(()
-                        -> new NoSuchElementException(ErrorMessage.USER_NOT_FOUND_BY_USERNAME + username));
-    }
+    private final JwtIdentificationUtils jwtIdentificationUtils;
+    private final WebSocketsNotifier webSocketsNotifier;
 
     @DeleteMapping("/{meeting_id}")
     public ResponseEntity<?> deleteEvent(
@@ -66,14 +59,14 @@ public class EventController {
             @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader
     ) {
         try {
-            UserEntity user = getUserFromHeader(authHeader);
+            UserEntity user = jwtIdentificationUtils.getUserFromHeader(authHeader);
             EventDto event = eventService.getEventById(id);
             if (!event.authorId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new AppError(HttpStatus.FORBIDDEN.value(), ErrorMessage.FORBIDDEN.getMessage()));
             }
             eventService.deleteEvent(id);
-            notifyParticipants(event, WebSocketAction.DELETE, null);
+            webSocketsNotifier.notify(event, WebSocketAction.DELETE, null);
             return ResponseEntity.ok().build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -116,7 +109,7 @@ public class EventController {
             @PathVariable("meeting_id") Long meetingId
     ) {
         try {
-            UserEntity user = getUserFromHeader(authHeader);
+            UserEntity user = jwtIdentificationUtils.getUserFromHeader(authHeader);
             EventDto event = eventService.getEventById(meetingId);
             if (!event.authorId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -160,9 +153,9 @@ public class EventController {
             @RequestBody CreatingMeetingRequest request
     ) {
         try {
-            UserEntity author = getUserFromHeader(authHeader);
+            UserEntity author = jwtIdentificationUtils.getUserFromHeader(authHeader);
             EventDto meeting = eventService.createEvent(author, request);
-            notifyParticipants(meeting, WebSocketAction.CREATE, meeting);
+            webSocketsNotifier.notify(meeting, WebSocketAction.CREATE, meeting);
             return ResponseEntity.ok(meeting);
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -200,16 +193,13 @@ public class EventController {
             @RequestBody AcceptMeetingRequest request
     ) {
         try {
-            UserEntity user = getUserFromHeader(authHeader);
+            UserEntity user = jwtIdentificationUtils.getUserFromHeader(authHeader);
             eventService.acceptEvent(user, request, meetingId);
             EventDto updated = eventService.getEventById(meetingId);
             if (request.status().equals(AcceptStatusParticipant.DECLINED)) {
-                messagingTemplate.convertAndSend(
-                        "/user/" + user.getId() + "/queue/updates",
-                        new WebSocketMessage(WebSocketAction.DELETE, updated.id(), null));
+                webSocketsNotifier.notify(updated, WebSocketAction.DELETE, null);
             }
-
-            notifyParticipants(updated, WebSocketAction.UPDATE, updated);
+            webSocketsNotifier.notify(updated, WebSocketAction.UPDATE, updated);
             return ResponseEntity.ok().build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -252,28 +242,18 @@ public class EventController {
             @RequestBody ScheduleRequest request
     ) {
         try {
-            UserEntity user = getUserFromHeader(authHeader);
+            UserEntity user = jwtIdentificationUtils.getUserFromHeader(authHeader);
             EventDto event = eventService.getEventById(meetingId);
             if (!event.authorId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new AppError(HttpStatus.FORBIDDEN.value(), ErrorMessage.FORBIDDEN.getMessage()));
             }
             EventDto updated = eventService.scheduleEvent(meetingId, request.startTime());
-            notifyParticipants(updated, WebSocketAction.SCHEDULE, updated);
+            webSocketsNotifier.notify(updated, WebSocketAction.SCHEDULE, updated);
             return ResponseEntity.ok(updated);
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new AppError(HttpStatus.NOT_FOUND.value(), e.getMessage()));
         }
-    }
-
-    private void notifyParticipants(EventDto event, WebSocketAction action, Object payload) {
-        List<Long> participantIds = event.participants().stream()
-                .map(p -> p.user().id())
-                .toList();
-        participantIds.forEach(pid -> messagingTemplate.convertAndSend(
-                "/user/" + pid + "/queue/updates",
-                new WebSocketMessage(action, event.id(), payload)
-        ));
     }
 }

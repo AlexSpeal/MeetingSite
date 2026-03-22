@@ -41,10 +41,14 @@ public class EventParticipantEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
-    public EventParticipantEntity(EventEntity event, UserEntity user, AcceptStatusParticipant status) {
+    @Column(nullable = false)
+    private boolean required;
+
+    public EventParticipantEntity(EventEntity event, UserEntity user, AcceptStatusParticipant status, boolean required) {
         super();
         this.event = event;
         this.user = user;
         this.status = status;
+        this.required = required;
     }
 }

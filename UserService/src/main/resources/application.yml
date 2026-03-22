@@ -4,6 +4,8 @@ jwt:
 
 app:
   base-url-auth: http://localhost:8189
+  work-start: "09:00"
+  work-end: "18:00"
 
 spring:
   application:

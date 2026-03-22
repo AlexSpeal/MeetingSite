@@ -13,6 +13,7 @@ import alexspeal.enums.AcceptStatusParticipant;
 import alexspeal.enums.ErrorMessage;
 import alexspeal.enums.SortOption;
 import alexspeal.mappers.MeetingMapper;
+import alexspeal.models.Participant;
 import alexspeal.repositories.DayRepository;
 import alexspeal.repositories.MeetingParticipantRepository;
 import alexspeal.repositories.MeetingRepository;
@@ -152,7 +153,8 @@ public class EventService {
                 new EventParticipantEntity(
                         eventEntity,
                         author,
-                        AcceptStatusParticipant.ACCEPTED
+                        AcceptStatusParticipant.ACCEPTED,
+                        true
                 )
         );
 
@@ -235,13 +237,18 @@ public class EventService {
                 .orElseThrow(() -> new NoSuchElementException(ErrorMessage.USER_NOT_FOUND_BY_ID.getMessage(userId.toString())));
     }
 
-    private void addParticipantsToEvent(EventEntity eventEntity, List<Long> participantIds) {
-        List<EventParticipantEntity> participants = participantIds.stream()
-                .map(this::findUserById)
-                .filter(user -> !user.getId().equals(eventEntity.getAuthor().getId()))
-                .map(user -> new EventParticipantEntity(eventEntity, user, AcceptStatusParticipant.PENDING))
+    private void addParticipantsToEvent(EventEntity eventEntity, List<Participant> participants) {
+        List<EventParticipantEntity> eventParticipants = participants.stream()
+                .filter(participant -> !participant.userId().equals(eventEntity.getAuthor().getId()))
+                .map(participant -> {
+                    UserEntity user = findUserById(participant.userId());
+                    return new EventParticipantEntity(eventEntity, user,
+                            AcceptStatusParticipant.PENDING,
+                            participant.required());
+                })
                 .toList();
-        meetingParticipantRepository.saveAll(participants);
+
+        meetingParticipantRepository.saveAll(eventParticipants);
     }
 
     private List<DayEntity> createDayEntities(EventParticipantEntity participant, List<LocalDate> dates) {

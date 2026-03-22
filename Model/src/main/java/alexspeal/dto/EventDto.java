@@ -15,5 +15,3 @@ public record EventDto(Long id, String title, String description,
                        LocalDateTime createdAt
 ) {
 }
-
-

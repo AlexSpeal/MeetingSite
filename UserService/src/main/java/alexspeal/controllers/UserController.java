@@ -9,6 +9,7 @@ import alexspeal.enums.SortOption;
 import alexspeal.exceptions.AppError;
 import alexspeal.service.EventService;
 import alexspeal.service.UserService;
+import alexspeal.utils.JwtIdentificationUtils;
 import alexspeal.utils.JwtTokenUtils;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -32,14 +33,7 @@ import java.util.NoSuchElementException;
 public class UserController {
     private final EventService eventService;
     private final UserService userService;
-    private final JwtTokenUtils jwtTokenUtils;
-
-    private UserEntity getUserFromHeader(String authHeader) {
-        String jwtToken = authHeader.replace("Bearer ", "");
-        String username = jwtTokenUtils.getUsername(jwtToken);
-        return userService.findUserEntityByUsername(username)
-                .orElseThrow(() -> new NoSuchElementException(ErrorMessage.USER_NOT_FOUND_BY_USERNAME.getMessage()));
-    }
+    public final JwtIdentificationUtils jwtIdentificationUtils;
 
     @GetMapping("/{user_id}")
     public ResponseEntity<?> getUserById(@PathVariable("user_id") Long userId) {
@@ -68,7 +62,7 @@ public class UserController {
             @RequestParam(name = "sort", defaultValue = "DATE") SortOption sortOption) {
 
         try {
-            UserEntity user = getUserFromHeader(authHeader);
+            UserEntity user = jwtIdentificationUtils.getUserFromHeader(authHeader);
             List<EventDto> eventList = eventService.getAllUserEvents(user.getId(), sortOption);
             return ResponseEntity.ok(new GetAllUserEventsResponse(eventList));
         } catch (NoSuchElementException e) {

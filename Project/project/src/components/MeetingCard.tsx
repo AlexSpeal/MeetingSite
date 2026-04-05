@@ -321,13 +321,20 @@ const MeetingCard: React.FC<MeetingCardProps> = ({meeting, onDelete}) => {
                                     .map(participant => (
                                         <div
                                             key={participant.user.id}
-                                            className="flex items-center bg-gray-100 px-2 py-1 rounded"
+                                            className="flex items-center bg-gray-100 px-2 py-1 rounded gap-2"
                                         >
-                      <span className="text-sm text-gray-700">
-                        {participant.user.username}
-                      </span>
+            <span className="text-sm text-gray-700">
+                {participant.user.username}
+            </span>
+
+                                            {participant.required && (
+                                                <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                    Обязательный
+                </span>
+                                            )}
+
                                             {isOrganizer && (
-                                                <div className="ml-2">
+                                                <div className="ml-1">
                                                     {getStatusBadge(participant.status)}
                                                 </div>
                                             )}

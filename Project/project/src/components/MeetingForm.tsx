@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {useForm} from 'react-hook-form';
 import {Calendar, Search, X} from 'lucide-react';
 import {useMeetingContext} from '../context/MeetingContext';
-import {CreatingEventRequest, Event, EventParticipant} from '../types';
+import {CreatingEventRequest, Event, User} from '../types';
 import InteractiveCalendar from './Calendar';
 import LoadingScreen from './LoadingScreen';
 import MeetingConfirmation from './MeetingConfirmation';
@@ -16,6 +16,11 @@ interface FormData {
     description?: string;
     isPersonal: boolean;
     duration: number;
+}
+
+interface SelectedParticipant {
+    user: User;
+    required: boolean;
 }
 
 const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
@@ -33,7 +38,7 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
     const {addMeeting, currentUser, getUserByUsername, isLoading, isUserLoading} = useMeetingContext();
 
     const [selectedDates, setSelectedDates] = useState<string[]>([]);
-    const [selectedParticipants, setSelectedParticipants] = useState<EventParticipant[]>([]);
+    const [selectedParticipants, setSelectedParticipants] = useState<SelectedParticipant[]>([]);
     const [calendarVisible, setCalendarVisible] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchError, setSearchError] = useState<string | null>(null);
@@ -85,7 +90,7 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
 
             setSelectedParticipants((prev) => [
                 ...prev,
-                {user, status: 'PENDING'} as EventParticipant,
+                {user, required: false},
             ]);
             setSearchQuery('');
             setSearchError(null);
@@ -104,6 +109,16 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
             e.preventDefault();
             addParticipant();
         }
+    };
+
+    const toggleParticipantRequired = (userId: number) => {
+        setSelectedParticipants((prev) =>
+            prev.map((participant) =>
+                participant.user.id === userId
+                    ? {...participant, required: !participant.required}
+                    : participant
+            )
+        );
     };
 
     const removeParticipant = (userId: number) => {
@@ -126,7 +141,12 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
                 title: data.title,
                 description: data.description || '',
                 possibleDays: selectedDates,
-                participants: data.isPersonal ? [] : selectedParticipants.map((p) => p.user.id),
+                participants: data.isPersonal
+                    ? []
+                    : selectedParticipants.map((p) => ({
+                        userId: p.user.id,
+                        required: p.required,
+                    })),
                 duration: data.duration,
             };
             const newMeeting = await addMeeting(meetingData);
@@ -329,7 +349,19 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
                                                 key={participant.user.id}
                                                 className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
                                             >
-                                                <span>{participant.user.username}</span>
+                                                <div className="flex flex-col">
+                                                    <span>{participant.user.username}</span>
+                                                    <label className="mt-2 flex items-center text-sm text-gray-700">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={participant.required}
+                                                            onChange={() => toggleParticipantRequired(participant.user.id)}
+                                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                        />
+                                                        <span className="ml-2">Обязательный</span>
+                                                    </label>
+                                                </div>
+
                                                 <button
                                                     type="button"
                                                     onClick={() => removeParticipant(participant.user.id)}

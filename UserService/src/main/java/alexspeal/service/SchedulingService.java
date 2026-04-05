@@ -28,22 +28,22 @@ import java.util.NoSuchElementException;
 public class SchedulingService {
 
     private final MeetingRepository meetingRepository;
-    private final MeetingParticipantRepository participantRepository;
-    private final ParticipantScheduleService scheduleService;
-    private final RequiredWindowService requiredWindowService;
-    private final AvailabilityCalculator availabilityCalculator;
-    private final IntervalService intervalService;
+        private final MeetingParticipantRepository participantRepository;
+        private final ParticipantScheduleService scheduleService;
+        private final RequiredWindowService requiredWindowService;
+        private final AvailabilityCalculator availabilityCalculator;
+        private final IntervalService intervalService;
 
-    public AvailabilityIntervalsResponse getMeetingAvailability(Long meetingId) {
-        EventEntity meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
+        public AvailabilityIntervalsResponse getMeetingAvailability(Long meetingId) {
+            EventEntity meeting = meetingRepository.findById(meetingId)
+                    .orElseThrow(() -> new NoSuchElementException(ErrorMessage.MEETING_NOT_FOUND.getMessage()));
 
-        int duration = meeting.getDuration();
+            int duration = meeting.getDuration();
 
-        boolean hasPending = meeting.getEventParticipants().stream()
-                .anyMatch(participant -> participant.getStatus() == AcceptStatusParticipant.PENDING);
+            boolean hasPending = meeting.getEventParticipants().stream()
+                    .anyMatch(participant -> participant.getStatus() == AcceptStatusParticipant.PENDING);
 
-        Long authorId = meeting.getAuthor().getId();
+            Long authorId = meeting.getAuthor().getId();
 
         EventParticipantEntity author = participantRepository
                 .findByEventIdAndUserId(meetingId, authorId)

@@ -88,7 +88,7 @@ const MeetingConfirmation: React.FC<MeetingConfirmationProps> = ({meeting, onClo
                 setShouldDelete(true);
             } else if (!isPersonal) {
                 if (data.maxCount === 0) {
-                    setInfoMessage('Невозможно подтвердить: автор встречи не может присутствовать.');
+                    setInfoMessage('Невозможно подтвердить: автор встречи/обязательные участники не могут присутствовать.');
                     setShouldDelete(true);
                 } else if (data.maxCount === 1 && data.havePending) {
                     setInfoMessage('Только вы доступны, но есть ожидающие участники. Ждать или удалить встречу?');

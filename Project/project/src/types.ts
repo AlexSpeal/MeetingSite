@@ -8,8 +8,9 @@ export interface EventParticipant {
     eventId: number;
     userId: number;
     user: User;
-    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | "INABILITY";
+    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'INABILITY';
     selectedDays: string[];
+    required?: boolean;
 }
 
 export interface Event {
@@ -48,20 +49,25 @@ export interface AvailabilityResponse {
         date: string;
         start: string;
         end: string;
-    }[],
+    }[];
     havePending: boolean;
+}
+
+export interface CreatingEventParticipantRequest {
+    userId: number;
+    required: boolean;
 }
 
 export interface CreatingEventRequest {
     title: string;
     description: string;
     possibleDays: string[];
-    participants?: number[];
+    participants?: CreatingEventParticipantRequest[];
     duration: number;
 }
 
 export interface AcceptEventRequest {
-    status: "ACCEPTED" | "DECLINED";
+    status: 'ACCEPTED' | 'DECLINED';
     selectedDays?: string[];
 }
 

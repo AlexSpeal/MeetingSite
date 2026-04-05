@@ -204,7 +204,6 @@ public class EventService {
         } else if (acceptMeetingRequest.status() == AcceptStatusParticipant.DECLINED) {
             participant.setStatus(AcceptStatusParticipant.DECLINED);
             dayRepository.deleteByEventParticipantId(participant.getId());
-            meetingParticipantRepository.deleteById(participant.getId());
         } else {
             throw new IllegalArgumentException(ErrorMessage.INCORRECT_STATUS.getMessage());
         }
@@ -249,6 +248,7 @@ public class EventService {
                 .toList();
 
         meetingParticipantRepository.saveAll(eventParticipants);
+        eventEntity.setEventParticipants(eventParticipants);
     }
 
     private List<DayEntity> createDayEntities(EventParticipantEntity participant, List<LocalDate> dates) {

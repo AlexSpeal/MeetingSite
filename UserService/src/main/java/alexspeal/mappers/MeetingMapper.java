@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -33,8 +34,8 @@ public class MeetingMapper {
                 .map(DayEntity::getDate)
                 .toList();
 
-        List<EventParticipantsDto> participants = meetingParticipantRepository
-                .findByEventId(event.getId())
+        List<EventParticipantsDto> participants = Optional.ofNullable(event.getEventParticipants())
+                .orElseGet(List::of)
                 .stream()
                 .map(participantMapper::toEventParticipantsDto)
                 .toList();

@@ -5,7 +5,16 @@ jwt:
 app:
   base-url-auth: http://localhost:8189
   work-start: "09:00"
-  work-end: "18:00"
+  work-end: "23:00"
+
+vk:
+  bot:
+    enabled: true
+    group-id: 237605745
+    access-token: ${VK_BOT_TOKEN}
+    reminder-minutes-before: 15
+    code-ttl-minutes: 1
+    max-attempts: 3
 
 spring:
   application:
@@ -18,7 +27,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         enable_lazy_load_no_trans: true
     hibernate:
-      ddl-auto: validate
+      ddl-auto: create
     show-sql: false
 
 server:

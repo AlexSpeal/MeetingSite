@@ -34,6 +34,9 @@ public class UserEntity {
     @Column(name = "password")
     private String password;
 
+    @Column(name = "vk_user_id")
+    private Long vkUserId;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Collection<EventParticipantEntity> eventParticipants;
 }

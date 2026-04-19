@@ -1,6 +1,7 @@
 export interface User {
     id: number;
     username: string;
+    vkUserId?: number | null;
 }
 
 export interface EventParticipant {
@@ -73,4 +74,12 @@ export interface AcceptEventRequest {
 
 export interface ScheduleRequest {
     startTime: string;
+}
+
+export interface StartVkBindingRequest {
+    screenName: string;
+}
+
+export interface ConfirmVkBindingRequest {
+    code: string;
 }

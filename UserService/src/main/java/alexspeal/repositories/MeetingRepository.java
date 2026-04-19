@@ -41,4 +41,16 @@ public interface MeetingRepository extends CrudRepository<EventEntity, Long> {
             @Param("meetingId") Long meetingId,
             @Param("startTime") LocalDateTime startTime,
             @Param("status") AcceptStatusEvent status);
+
+    @Query("""
+    SELECT e
+    FROM EventEntity e
+    WHERE e.status = alexspeal.enums.AcceptStatusEvent.ACCEPTED
+      AND e.startTime >= :from
+      AND e.startTime < :to
+""")
+    List<EventEntity> findMeetingsStartingBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
 }

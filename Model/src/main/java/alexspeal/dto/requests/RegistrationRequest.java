@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 
 public record RegistrationRequest(
-        @NotNull
+        @org.jetbrains.annotations.NotNull
         @JsonProperty("username") String username,
 
         @NotNull

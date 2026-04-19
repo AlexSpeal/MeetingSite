@@ -133,7 +133,7 @@ public class AuthController {
 
         return userService.findUserEntityByUsername(username)
                 .map(user -> {
-                    GetUserResponse response = new GetUserResponse(user.getId(), user.getUsername());
+                    GetUserResponse response = new GetUserResponse(user.getId(), user.getUsername(), user.getVkUserId());
                     return ResponseEntity.ok(response);
                 })
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));

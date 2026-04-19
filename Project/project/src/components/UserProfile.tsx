@@ -4,6 +4,7 @@ import {useMeetingContext} from '../context/MeetingContext';
 import {format, parseISO} from 'date-fns';
 import LoadingScreen from './LoadingScreen';
 import {useNavigate} from 'react-router-dom';
+import VkBindingModal from './VkBindingModal';
 
 interface UserProfileProps {
     onClose: () => void;
@@ -39,16 +40,29 @@ const LogoutModal: React.FC<LogoutModalProps> = ({onConfirm, onCancel}) => {
 };
 
 const UserProfile: React.FC<UserProfileProps> = ({onClose}) => {
-    const {currentUser, meetings, isLoading, logout} = useMeetingContext();
+    const {currentUser, meetings, isLoading, logout, disableVkBinding} = useMeetingContext();
     const [error, setError] = useState<string | null>(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
-
+    const [showVkModal, setShowVkModal] = useState(false);
+    const [vkMessage, setVkMessage] = useState<string | null>(null);
+    const [vkError, setVkError] = useState<string | null>(null);
     const handleLogout = () => {
         logout();
         setShowLogoutModal(false);
         onClose();
         navigate('/auth');
+    };
+    const handleDisableVk = async () => {
+        setVkError(null);
+        setVkMessage(null);
+
+        try {
+            const result = await disableVkBinding();
+            setVkMessage(typeof result === 'string' ? result : 'VK уведомления отключены');
+        } catch (err: any) {
+            setVkError(err.message || 'Не удалось отключить VK');
+        }
     };
 
     useEffect(() => {
@@ -224,6 +238,54 @@ const UserProfile: React.FC<UserProfileProps> = ({onClose}) => {
                             <p className="text-gray-500">Нет ожидающих приглашений на встречи</p>
                         )}
                     </div>
+                    <div className="mt-8">
+                        <h4 className="text-lg font-semibold mb-3 flex items-center">
+                            <User size={20} className="mr-2 text-blue-600"/>
+                            VK-уведомления
+                        </h4>
+
+                        {vkError && (
+                            <div className="mb-3 text-red-600 text-sm bg-red-100 px-3 py-2 rounded">
+                                {vkError}
+                            </div>
+                        )}
+
+                        {vkMessage && (
+                            <div className="mb-3 text-green-700 text-sm bg-green-100 px-3 py-2 rounded">
+                                {vkMessage}
+                            </div>
+                        )}
+
+                        {currentUser.vkUserId ? (
+                            <div className="flex items-center justify-between border border-gray-200 rounded-lg p-4">
+                                <div>
+                                    <p className="font-medium text-gray-800">VK подключен</p>
+                                    <p className="text-sm text-gray-500">VK ID: {currentUser.vkUserId}</p>
+                                </div>
+                                <button
+                                    onClick={handleDisableVk}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                >
+                                    Отключить
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between border border-gray-200 rounded-lg p-4">
+                                <div>
+                                    <p className="font-medium text-gray-800">VK не подключен</p>
+                                    <p className="text-sm text-gray-500">
+                                        Подключите VK, чтобы получать напоминания о встречах
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowVkModal(true)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Подключить
+                                </button>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="mt-8">
                         <button
@@ -235,6 +297,9 @@ const UserProfile: React.FC<UserProfileProps> = ({onClose}) => {
                         </button>
                     </div>
                 </div>
+                {showVkModal && (
+                    <VkBindingModal onClose={() => setShowVkModal(false)} />
+                )}
 
                 {showLogoutModal && (
                     <LogoutModal

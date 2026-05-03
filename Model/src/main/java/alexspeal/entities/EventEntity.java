@@ -16,7 +16,9 @@ import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @NoArgsConstructor
@@ -37,12 +39,18 @@ public class EventEntity {
     private String title;
     @Column(name = "is_personal")
     private Boolean isPersonal;
-    @Column(name = "start_time")
-    private LocalDateTime startTime;
+    @Column(name = "is_fixed", nullable = false)
+    private Boolean isFixed = true;
+    @Column(name = "preferred_window_start")
+    private LocalTime preferredWindowStart;
+    @Column(name = "preferred_window_end")
+    private LocalTime preferredWindowEnd;
+    @Column(name = "start_time", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime startTime;
     @Column(name = "duration")
     private Integer duration;
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime createdAt;
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EventParticipantEntity> eventParticipants;
 
@@ -51,7 +59,9 @@ public class EventEntity {
     private UserEntity author;
 
     public EventEntity(String title, String description, AcceptStatusEvent status,
-                       LocalDateTime startTime, Integer duration, UserEntity author, boolean isPersonal) {
+                       OffsetDateTime startTime, Integer duration, UserEntity author,
+                       boolean isPersonal, boolean isFixed,
+                       LocalTime preferredWindowStart, LocalTime preferredWindowEnd) {
         super();
         this.title = title;
         this.description = description;
@@ -60,6 +70,9 @@ public class EventEntity {
         this.duration = duration;
         this.author = author;
         this.isPersonal = isPersonal;
-        this.createdAt = LocalDateTime.now();
+        this.isFixed = isFixed;
+        this.preferredWindowStart = preferredWindowStart;
+        this.preferredWindowEnd = preferredWindowEnd;
+        this.createdAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

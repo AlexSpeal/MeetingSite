@@ -15,7 +15,11 @@ interface FormData {
     title: string;
     description?: string;
     isPersonal: boolean;
+    isFixed: boolean;
     duration: number;
+    hasPreferredWindow: boolean;
+    preferredWindowStart: string;
+    preferredWindowEnd: string;
 }
 
 interface SelectedParticipant {
@@ -32,7 +36,11 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
     } = useForm<FormData>({
         defaultValues: {
             isPersonal: false,
+            isFixed: true,
             duration: 60,
+            hasPreferredWindow: false,
+            preferredWindowStart: '18:00',
+            preferredWindowEnd: '20:00',
         },
     });
     const {addMeeting, currentUser, getUserByUsername, isLoading, isUserLoading} = useMeetingContext();
@@ -47,6 +55,7 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
     const [showConfirmation, setShowConfirmation] = useState(false);
 
     const isPersonal = watch('isPersonal');
+    const hasPreferredWindow = watch('hasPreferredWindow');
 
     useEffect(() => {
         if (!isLoading && !isUserLoading && !currentUser) {
@@ -125,6 +134,15 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
         setSelectedParticipants((prev) => prev.filter((p) => p.user.id !== userId));
     };
 
+    const parseHHMMToMinutes = (hhmm: string): number | null => {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+        if (!m) return null;
+        const h = Number(m[1]);
+        const min = Number(m[2]);
+        if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+        return h * 60 + min;
+    };
+
     const onSubmit = async (data: FormData) => {
         if (selectedDates.length === 0) {
             setFormError('Пожалуйста, выберите хотя бы одну возможную дату');
@@ -134,6 +152,29 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
         if (!data.isPersonal && selectedParticipants.length === 0) {
             setFormError('Пожалуйста, выберите хотя бы одного участника');
             return;
+        }
+
+        let preferredWindowStart: string | null = null;
+        let preferredWindowEnd: string | null = null;
+        if (data.isPersonal && data.hasPreferredWindow) {
+            const startMin = parseHHMMToMinutes(data.preferredWindowStart);
+            const endMin = parseHHMMToMinutes(data.preferredWindowEnd);
+            if (startMin == null || endMin == null) {
+                setFormError('Некорректный формат времени желаемого промежутка');
+                return;
+            }
+            if (endMin <= startMin) {
+                setFormError('Конец желаемого промежутка должен быть позже начала');
+                return;
+            }
+            if (endMin - startMin < data.duration) {
+                setFormError(
+                    `Желаемый промежуток (${endMin - startMin} мин) короче длительности встречи (${data.duration} мин)`
+                );
+                return;
+            }
+            preferredWindowStart = `${data.preferredWindowStart}:00`;
+            preferredWindowEnd = `${data.preferredWindowEnd}:00`;
         }
 
         try {
@@ -148,6 +189,9 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
                         required: p.required,
                     })),
                 duration: data.duration,
+                isFixed: data.isPersonal ? data.isFixed : true,
+                preferredWindowStart,
+                preferredWindowEnd,
             };
             const newMeeting = await addMeeting(meetingData);
             setCreatedMeeting(newMeeting);
@@ -207,6 +251,63 @@ const MeetingForm: React.FC<MeetingFormProps> = ({onClose}) => {
                                 Это личное событие (только для меня)
                             </label>
                         </div>
+
+                        {isPersonal && (
+                            <div className="flex items-center mb-4">
+                                <input
+                                    type="checkbox"
+                                    id="isFixed"
+                                    {...register('isFixed')}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="isFixed" className="ml-2 block text-sm text-gray-900">
+                                    Фиксированное время (нельзя сдвигать)
+                                </label>
+                            </div>
+                        )}
+
+                        {isPersonal && (
+                            <div className="mb-4">
+                                <div className="flex items-center mb-2">
+                                    <input
+                                        type="checkbox"
+                                        id="hasPreferredWindow"
+                                        {...register('hasPreferredWindow')}
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <label htmlFor="hasPreferredWindow" className="ml-2 block text-sm text-gray-900">
+                                        Желаемый промежуток времени
+                                    </label>
+                                </div>
+
+                                {hasPreferredWindow && (
+                                    <div className="ml-6 grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Не раньше</label>
+                                            <input
+                                                type="time"
+                                                step="300"
+                                                {...register('preferredWindowStart')}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Не позже</label>
+                                            <input
+                                                type="time"
+                                                step="300"
+                                                {...register('preferredWindowEnd')}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <p className="col-span-2 text-xs text-gray-500">
+                                            Система найдёт слот в этом промежутке. Если он занят сдвигаемой
+                                            личной встречей, она будет передвинута оптимально.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">

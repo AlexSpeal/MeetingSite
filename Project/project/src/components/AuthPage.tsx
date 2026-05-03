@@ -46,7 +46,8 @@ const AuthPage: React.FC = () => {
     const handleRegisterSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setRegisterError('');
-        const data = {username: registerUsername, password: registerPassword};
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const data = {username: registerUsername, password: registerPassword, timezone};
 
         try {
             const response = await fetch('http://localhost:8189/signup', {

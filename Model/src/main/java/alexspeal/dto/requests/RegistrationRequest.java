@@ -8,6 +8,10 @@ public record RegistrationRequest(
         @JsonProperty("username") String username,
 
         @NotNull
-        @JsonProperty("password") String password
+        @JsonProperty("password") String password,
+
+        @JsonProperty("timezone") String timezone,
+
+        @JsonProperty("dailyLoadMinutes") Integer dailyLoadMinutes
 ) {
 }

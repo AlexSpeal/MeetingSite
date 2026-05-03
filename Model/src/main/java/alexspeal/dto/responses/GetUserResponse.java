@@ -1,5 +1,4 @@
 package alexspeal.dto.responses;
 
-public record GetUserResponse(Long id, String username, Long vkUserId) {
+public record GetUserResponse(Long id, String username, Long vkUserId, Integer dailyLoadMinutes) {
 }
-

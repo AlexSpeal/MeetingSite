@@ -37,6 +37,12 @@ public class UserEntity {
     @Column(name = "vk_user_id")
     private Long vkUserId;
 
+    @Column(name = "timezone")
+    private String timezone;
+
+    @Column(name = "daily_load_minutes")
+    private Integer dailyLoadMinutes;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Collection<EventParticipantEntity> eventParticipants;
 }

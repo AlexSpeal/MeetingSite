@@ -3,9 +3,13 @@ package alexspeal.dto.requests;
 import alexspeal.models.Participant;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record CreatingMeetingRequest(String title, String description,
                                      Integer duration, List<LocalDate> possibleDays,
-                                     List<Participant> participants) {
+                                     List<Participant> participants,
+                                     Boolean isFixed,
+                                     LocalTime preferredWindowStart,
+                                     LocalTime preferredWindowEnd) {
 }

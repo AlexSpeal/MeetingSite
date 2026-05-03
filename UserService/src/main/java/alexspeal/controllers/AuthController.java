@@ -3,6 +3,7 @@ package alexspeal.controllers;
 import alexspeal.dto.UserDto;
 import alexspeal.dto.requests.JwtRequest;
 import alexspeal.dto.requests.RegistrationRequest;
+import alexspeal.dto.requests.UpdateDailyLoadRequest;
 import alexspeal.dto.responses.GetUserResponse;
 import alexspeal.dto.responses.JwtResponse;
 import alexspeal.enums.ErrorMessage;
@@ -25,6 +26,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
@@ -89,7 +91,12 @@ public class AuthController {
             return new ResponseEntity<>(new AppError(HttpStatus.BAD_REQUEST.value(), ErrorMessage.USER_EXISTS.getMessage()), HttpStatus.BAD_REQUEST);
         }
 
-        UserDto userDTO = new UserDto(registrationRequest.username(), registrationRequest.password());
+        UserDto userDTO = new UserDto(
+                registrationRequest.username(),
+                registrationRequest.password(),
+                registrationRequest.timezone(),
+                registrationRequest.dailyLoadMinutes()
+        );
         userService.createNewUser(userDTO);
 
         return createAuthToken(new JwtRequest(registrationRequest.username(), registrationRequest.password()));
@@ -133,9 +140,46 @@ public class AuthController {
 
         return userService.findUserEntityByUsername(username)
                 .map(user -> {
-                    GetUserResponse response = new GetUserResponse(user.getId(), user.getUsername(), user.getVkUserId());
+                    GetUserResponse response = new GetUserResponse(
+                            user.getId(),
+                            user.getUsername(),
+                            user.getVkUserId(),
+                            user.getDailyLoadMinutes()
+                    );
                     return ResponseEntity.ok(response);
                 })
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    }
+
+    @Operation(
+            summary = "Обновление ежедневной нагрузки",
+            description = "Устанавливает максимальную ежедневную нагрузку текущего пользователя в минутах. " +
+                    "null означает отсутствие ограничения."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Нагрузка обновлена"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Невалидное значение",
+                    content = @Content(schema = @Schema(implementation = AppError.class)))
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PutMapping("/secured/user/dailyLoad")
+    public ResponseEntity<?> updateDailyLoad(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody UpdateDailyLoadRequest request
+    ) {
+        if (request.dailyLoadMinutes() != null && request.dailyLoadMinutes() < 0) {
+            return new ResponseEntity<>(
+                    new AppError(HttpStatus.BAD_REQUEST.value(), ErrorMessage.INVALID_DAILY_LOAD.getMessage()),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        String jwtToken = authHeader.replace("Bearer ", "");
+        String username = jwtTokenUtils.getUsername(jwtToken);
+
+        userService.updateDailyLoad(username, request.dailyLoadMinutes());
+        return ResponseEntity.ok().build();
     }
 }

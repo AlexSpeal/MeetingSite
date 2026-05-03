@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Calendar, Clock, LogOut, User, Users, X} from 'lucide-react';
+import {Calendar, Clock, Gauge, LogOut, User, Users, X} from 'lucide-react';
 import {useMeetingContext} from '../context/MeetingContext';
 import {format, parseISO} from 'date-fns';
 import LoadingScreen from './LoadingScreen';
@@ -40,13 +40,49 @@ const LogoutModal: React.FC<LogoutModalProps> = ({onConfirm, onCancel}) => {
 };
 
 const UserProfile: React.FC<UserProfileProps> = ({onClose}) => {
-    const {currentUser, meetings, isLoading, logout, disableVkBinding} = useMeetingContext();
+    const {currentUser, meetings, isLoading, logout, disableVkBinding, updateDailyLoad} = useMeetingContext();
     const [error, setError] = useState<string | null>(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
     const [showVkModal, setShowVkModal] = useState(false);
     const [vkMessage, setVkMessage] = useState<string | null>(null);
     const [vkError, setVkError] = useState<string | null>(null);
+    const [dailyLoadInput, setDailyLoadInput] = useState<string>(
+        currentUser?.dailyLoadMinutes != null ? String(currentUser.dailyLoadMinutes / 60) : ''
+    );
+    const [loadMessage, setLoadMessage] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setDailyLoadInput(
+            currentUser?.dailyLoadMinutes != null ? String(currentUser.dailyLoadMinutes / 60) : ''
+        );
+    }, [currentUser?.dailyLoadMinutes]);
+
+    const handleSaveDailyLoad = async () => {
+        setLoadMessage(null);
+        setLoadError(null);
+
+        const trimmed = dailyLoadInput.trim();
+        let dailyLoadMinutes: number | null;
+        if (trimmed === '') {
+            dailyLoadMinutes = null;
+        } else {
+            const hours = Number(trimmed);
+            if (!Number.isFinite(hours) || hours <= 0 || hours > 24) {
+                setLoadError('Введите число от 1 до 24, или оставьте поле пустым для снятия ограничения');
+                return;
+            }
+            dailyLoadMinutes = Math.round(hours * 60);
+        }
+
+        try {
+            await updateDailyLoad({dailyLoadMinutes});
+            setLoadMessage('Ежедневная нагрузка обновлена');
+        } catch (err: any) {
+            setLoadError(err.message || 'Не удалось обновить ежедневную нагрузку');
+        }
+    };
     const handleLogout = () => {
         logout();
         setShowLogoutModal(false);
@@ -285,6 +321,50 @@ const UserProfile: React.FC<UserProfileProps> = ({onClose}) => {
                                 </button>
                             </div>
                         )}
+                    </div>
+
+                    <div className="mt-8">
+                        <h4 className="text-lg font-semibold mb-3 flex items-center">
+                            <Gauge size={20} className="mr-2 text-blue-600"/>
+                            Ежедневная нагрузка
+                        </h4>
+
+                        {loadError && (
+                            <div className="mb-3 text-red-600 text-sm bg-red-100 px-3 py-2 rounded">
+                                {loadError}
+                            </div>
+                        )}
+
+                        {loadMessage && (
+                            <div className="mb-3 text-green-700 text-sm bg-green-100 px-3 py-2 rounded">
+                                {loadMessage}
+                            </div>
+                        )}
+
+                        <div className="border border-gray-200 rounded-lg p-4">
+                            <p className="text-sm text-gray-500 mb-3">
+                                Максимальное количество часов встреч в день. Слоты, в которые ваша нагрузка
+                                превысит этот лимит, не будут предлагаться. Оставьте пустым, чтобы снять ограничение.
+                            </p>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="24"
+                                    step="0.5"
+                                    value={dailyLoadInput}
+                                    onChange={(e) => setDailyLoadInput(e.target.value)}
+                                    placeholder="часов"
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                    onClick={handleSaveDailyLoad}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Сохранить
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="mt-8">

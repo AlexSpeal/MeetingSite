@@ -10,6 +10,7 @@ import {
     ScheduleRequest,
     SortOption,
     StartVkBindingRequest,
+    UpdateDailyLoadRequest,
     User,
     WebSocketAction,
     WebSocketMessage
@@ -36,6 +37,7 @@ interface MeetingContextType {
     startVkBinding: (request: StartVkBindingRequest) => Promise<any>;
     confirmVkBinding: (request: ConfirmVkBindingRequest) => Promise<any>;
     disableVkBinding: () => Promise<any>;
+    updateDailyLoad: (request: UpdateDailyLoadRequest) => Promise<void>;
 }
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
@@ -196,6 +198,17 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({children}) =
             console.error('Ошибка при подтверждении привязки VK:', error);
             throw error;
         }
+    }, [getAuthHeaders, handleResponse, getCurrentUser]);
+
+    const updateDailyLoad = useCallback(async (request: UpdateDailyLoadRequest) => {
+        const response = await fetch('/secured/user/dailyLoad', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(request),
+        });
+        await handleResponse(response);
+        const updatedUser = await getCurrentUser();
+        setCurrentUser(updatedUser);
     }, [getAuthHeaders, handleResponse, getCurrentUser]);
 
     const disableVkBinding = useCallback(async () => {
@@ -540,6 +553,7 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({children}) =
                 startVkBinding,
                 confirmVkBinding,
                 disableVkBinding,
+                updateDailyLoad,
             }}
         >
             {children}

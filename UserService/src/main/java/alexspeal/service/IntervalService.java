@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,21 +16,21 @@ import java.util.List;
 public class IntervalService {
 
     public List<Interval> toMeetingIntervals(
-            LocalDate date,
+            LocalDate utcDate,
             List<AvailabilitySegment> segments,
             int durationMinutes
     ) {
         List<Interval> result = new ArrayList<>();
 
         for (AvailabilitySegment segment : segments) {
-            result.addAll(expandSegmentToMeetings(date, segment, durationMinutes));
+            result.addAll(expandSegmentToMeetings(utcDate, segment, durationMinutes));
         }
 
         return result;
     }
 
     private List<Interval> expandSegmentToMeetings(
-            LocalDate date,
+            LocalDate utcDate,
             AvailabilitySegment segment,
             int durationMinutes
     ) {
@@ -43,7 +45,9 @@ public class IntervalService {
         LocalTime latestStart = segment.end().minusMinutes(durationMinutes);
 
         while (!start.isAfter(latestStart)) {
-            meetings.add(new Interval(date, start, start.plusMinutes(durationMinutes)));
+            OffsetDateTime startOdt = utcDate.atTime(start).atOffset(ZoneOffset.UTC);
+            OffsetDateTime endOdt = startOdt.plusMinutes(durationMinutes);
+            meetings.add(new Interval(startOdt, endOdt));
             start = start.plusMinutes(1);
         }
 

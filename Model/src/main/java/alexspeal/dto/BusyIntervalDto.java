@@ -1,6 +1,7 @@
 package alexspeal.dto;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
-public record BusyIntervalDto(LocalDateTime startTime, int duration) {
+public record BusyIntervalDto(Long eventId, OffsetDateTime startTime, int duration,
+                              Boolean isFixed, Boolean isPersonal) {
 }

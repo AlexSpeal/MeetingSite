@@ -1,7 +1,6 @@
 package alexspeal.models;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.OffsetDateTime;
 
-public record Interval(LocalDate date, LocalTime start, LocalTime end) {
+public record Interval(OffsetDateTime start, OffsetDateTime end) {
 }

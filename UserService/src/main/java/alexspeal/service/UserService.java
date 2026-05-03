@@ -56,9 +56,22 @@ public class UserService implements UserDetailsService {
     }
 
     public void createNewUser(UserDto userDTO) {
-        UserDto userWithPasswordDTO = new UserDto(userDTO.username(), passwordEncoder.encode(userDTO.password()));
+        UserDto userWithPasswordDTO = new UserDto(
+                userDTO.username(),
+                passwordEncoder.encode(userDTO.password()),
+                userDTO.timezone(),
+                userDTO.dailyLoadMinutes()
+        );
         UserEntity userEntity = UserMapper.UserDTOToUserEntity(userWithPasswordDTO);
         userRepository.save(userEntity);
+    }
+
+    @Transactional
+    public void updateDailyLoad(String username, Integer dailyLoadMinutes) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException(ErrorMessage.USER_NOT_FOUND_BY_USERNAME.getMessage()));
+        user.setDailyLoadMinutes(dailyLoadMinutes);
+        userRepository.save(user);
     }
 
 }

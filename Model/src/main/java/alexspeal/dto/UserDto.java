@@ -1,4 +1,4 @@
 package alexspeal.dto;
 
-public record UserDto(String username, String password) {
+public record UserDto(String username, String password, String timezone, Integer dailyLoadMinutes) {
 }

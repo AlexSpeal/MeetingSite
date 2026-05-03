@@ -8,8 +8,10 @@ import alexspeal.entities.UserEntity;
 public final class UserMapper {
 
     public static UserEntity UserDTOToUserEntity(UserDto userDTO) {
-        return new UserEntity(userDTO.username(), userDTO.password());
-
+        UserEntity entity = new UserEntity(userDTO.username(), userDTO.password());
+        entity.setTimezone(userDTO.timezone());
+        entity.setDailyLoadMinutes(userDTO.dailyLoadMinutes());
+        return entity;
     }
 
     public static UserDetailsDto toUserDetailsDto(UserEntity user) {

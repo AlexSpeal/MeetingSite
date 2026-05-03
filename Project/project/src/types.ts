@@ -2,6 +2,7 @@ export interface User {
     id: number;
     username: string;
     vkUserId?: number | null;
+    dailyLoadMinutes?: number | null;
 }
 
 export interface EventParticipant {
@@ -22,6 +23,9 @@ export interface Event {
     possibleDays: string[];
     participants: EventParticipant[];
     isPersonal: boolean;
+    isFixed?: boolean;
+    preferredWindowStart?: string | null;  // "HH:mm" local time
+    preferredWindowEnd?: string | null;
     startTime?: string;
     duration: number;
     status: 'PENDING' | 'ACCEPTED';
@@ -47,8 +51,7 @@ export interface AvailabilityResponse {
     meetingId: number;
     maxCount: number;
     possibleIntervals: {
-        date: string;
-        start: string;
+        start: string;  // ISO 8601 UTC, e.g. "2026-05-05T06:00:00Z"
         end: string;
     }[];
     havePending: boolean;
@@ -65,6 +68,13 @@ export interface CreatingEventRequest {
     possibleDays: string[];
     participants?: CreatingEventParticipantRequest[];
     duration: number;
+    isFixed?: boolean;
+    preferredWindowStart?: string | null;  // "HH:mm" local time, optional
+    preferredWindowEnd?: string | null;
+}
+
+export interface UpdateDailyLoadRequest {
+    dailyLoadMinutes: number | null;
 }
 
 export interface AcceptEventRequest {

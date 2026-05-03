@@ -1,6 +1,6 @@
 package alexspeal.dto.requests;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
-public record ScheduleRequest(LocalDateTime startTime) {
+public record ScheduleRequest(OffsetDateTime startTime) {
 }

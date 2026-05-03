@@ -1,7 +1,6 @@
 package alexspeal.service;
 
 import alexspeal.dto.responses.AvailabilityIntervalsResponse;
-import alexspeal.entities.DayEntity;
 import alexspeal.entities.EventEntity;
 import alexspeal.entities.EventParticipantEntity;
 import alexspeal.enums.AcceptStatusParticipant;
@@ -22,6 +21,9 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
+
+import static java.lang.Boolean.TRUE;
 
 @Service
 @RequiredArgsConstructor
@@ -49,9 +51,14 @@ public class SchedulingService {
                 .findByEventIdAndUserId(meetingId, authorId)
                 .orElseThrow(() -> new IllegalStateException(ErrorMessage.NOT_FOUND_AUTHOR.getMessage()));
 
-        List<LocalDate> dates = author.getDays().stream()
-                .map(DayEntity::getDate)
-                .toList();
+        boolean personalWithRange = TRUE.equals(meeting.getIsPersonal())
+                && meeting.getPreferredWindowStart() != null
+                && meeting.getPreferredWindowEnd() != null;
+        LocalTime rangeStart = personalWithRange ? meeting.getPreferredWindowStart() : null;
+        LocalTime rangeEnd = personalWithRange ? meeting.getPreferredWindowEnd() : null;
+
+        ParticipantSchedule authorSchedule = scheduleService.build(
+                author, duration, rangeStart, rangeEnd, personalWithRange);
 
         List<EventParticipantEntity> meetingParticipants = meeting.getEventParticipants();
 
@@ -68,7 +75,7 @@ public class SchedulingService {
 
         List<ParticipantScheduleInfo> schedulesInfo = acceptedParticipants.stream()
                 .map(participant -> new ParticipantScheduleInfo(
-                        scheduleService.build(participant, duration),
+                        scheduleService.build(participant, duration, rangeStart, rangeEnd, personalWithRange),
                         participant.isRequired()
                 ))
                 .toList();
@@ -82,12 +89,12 @@ public class SchedulingService {
                 .map(ParticipantScheduleInfo::schedule)
                 .toList();
 
-        ParticipantSchedule authorSchedule = scheduleService.build(author, duration);
+        Set<LocalDate> utcDates = authorSchedule.availability().keySet();
 
         List<Interval> resultIntervals = new ArrayList<>();
         int globalMaxParticipants = 0;
 
-        for (LocalDate date : dates) {
+        for (LocalDate date : utcDates) {
             List<TimeInterval> allowedWindows = resolveAllowedWindows(
                     date,
                     requiredSchedules,

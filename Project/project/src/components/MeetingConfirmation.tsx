@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Info, X} from 'lucide-react';
 import {AvailabilityResponse, Event, ScheduleRequest} from '../types';
 import {useMeetingContext} from '../context/MeetingContext';
-import {addMinutes, format, isAfter, parse} from 'date-fns';
+import {format, parseISO} from 'date-fns';
 import LoadingScreen from './LoadingScreen';
 
 interface MeetingConfirmationProps {
@@ -39,41 +39,16 @@ const MeetingConfirmation: React.FC<MeetingConfirmationProps> = ({meeting, onClo
             const intervals = Array.isArray(data.possibleIntervals) ? data.possibleIntervals : [];
             const list: TimeOption[] = [];
 
-            console.log('Meeting duration:', meeting.duration);
+            // Each interval is one possible meeting slot (UTC ISO timestamps).
+            // Display times are converted to the browser's local timezone automatically by Date.
             intervals.forEach((interval) => {
-                const startDateTime = parse(
-                    `${interval.date} ${interval.start}`,
-                    'yyyy-MM-dd HH:mm:ss',
-                    new Date()
-                );
-                const endDateTime = parse(
-                    `${interval.date} ${interval.end}`,
-                    'yyyy-MM-dd HH:mm:ss',
-                    new Date()
-                );
-                const meetingDuration = meeting.duration || 60;
-                let current = startDateTime;
-
-                console.log(`Processing interval: ${interval.date} ${interval.start}–${interval.end}`);
-
-                while (!isAfter(current, endDateTime)) {
-                    const endTime = addMinutes(current, meetingDuration);
-                    const maxEndTime = parse(
-                        `${interval.date} 18:00:00`,
-                        'yyyy-MM-dd HH:mm:ss',
-                        new Date()
-                    );
-                    if (!isAfter(endTime, maxEndTime)) {
-                        const id = format(current, "yyyy-MM-dd'T'HH:mm:ss");
-                        const dateLabel = format(current, 'dd.MM.yyyy');
-                        const timeLabel = format(current, 'HH:mm');
-                        list.push({id, dateLabel, timeLabel});
-                    }
-                    current = addMinutes(current, 1);
-                }
+                const startDate = parseISO(interval.start);
+                const id = interval.start; // send UTC ISO back to backend
+                const dateLabel = format(startDate, 'dd.MM.yyyy');
+                const timeLabel = format(startDate, 'HH:mm');
+                list.push({id, dateLabel, timeLabel});
             });
 
-            console.log('Generated options:', list);
             setOptions(list);
             setMaxCount(data.maxCount);
             setHavePending(data.havePending);

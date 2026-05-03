@@ -14,7 +14,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,10 +34,10 @@ public class VkMeetingNotificationScheduler {
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void sendNotifications() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-        LocalDateTime from = now.plusMinutes(15);
-        LocalDateTime to = now.plusMinutes(16);
+        OffsetDateTime from = now.plusMinutes(15);
+        OffsetDateTime to = now.plusMinutes(16);
 
         var events = meetingRepository.findMeetingsStartingBetween(from, to);
 
@@ -69,7 +73,7 @@ public class VkMeetingNotificationScheduler {
     }
 
     private void sendNotification(EventEntity event, UserEntity user) {
-        String message = buildMessage(event);
+        String message = buildMessage(event, user);
 
         try {
             vkNotificationService.sendMessage(user.getVkUserId(), message);
@@ -84,16 +88,24 @@ public class VkMeetingNotificationScheduler {
         }
     }
 
-    private String buildMessage(EventEntity event) {
+    private String buildMessage(EventEntity event, UserEntity user) {
+        String timeStr = "";
+        if (event.getStartTime() != null) {
+            String tz = user.getTimezone();
+            ZoneId zone = (tz != null && !tz.isBlank()) ? ZoneId.of(tz) : ZoneOffset.UTC;
+            ZonedDateTime localTime = event.getStartTime().atZoneSameInstant(zone);
+            timeStr = "\nВремя начала: " + localTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+        }
         return """
                 Напоминание о встрече
-                                
+
                 Встреча "%s"
-                Начнется через 15 минут
-                                
+                Начнется через 15 минут%s
+
                 Длительность: %d минут
                 """.formatted(
                 event.getTitle(),
+                timeStr,
                 event.getDuration()
         );
     }
